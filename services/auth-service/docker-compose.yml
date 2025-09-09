@@ -1,0 +1,79 @@
+# Docker Compose for Auth Service Development
+version: '3.8'
+
+services:
+  auth-service:
+    build:
+      context: ../../
+      dockerfile: services/auth-service/Dockerfile
+      target: dev
+    container_name: ofair-auth-service
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - DATABASE_URL=postgresql://ofair_user:ofair_pass@postgres:5432/ofair_db
+      - REDIS_URL=redis://redis:6379/0
+      - JWT_SECRET_KEY=dev-secret-key-change-in-production
+    volumes:
+      - ./app:/app
+      - ../../libs/python-shared:/app/libs/python-shared
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - ofair-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: ofair-postgres
+    environment:
+      POSTGRES_DB: ofair_db
+      POSTGRES_USER: ofair_user
+      POSTGRES_PASSWORD: ofair_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ofair-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: ofair-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - ofair-network
+    command: redis-server --appendonly yes
+
+  # Optional: Redis Commander for Redis management
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: ofair-redis-commander
+    hostname: redis-commander
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    networks:
+      - ofair-network
+    depends_on:
+      - redis
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  ofair-network:
+    driver: bridge

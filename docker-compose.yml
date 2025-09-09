@@ -1,0 +1,189 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: ofair_dev
+      POSTGRES_USER: ofair_user
+      POSTGRES_PASSWORD: ofair_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ofair_minio
+      MINIO_ROOT_PASSWORD: ofair_minio_password
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://ofair_user:ofair_password@postgres:5432/ofair_dev
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8001:8000"
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./services/auth-service:/app
+      - ./libs:/app/libs
+
+  users-service:
+    build:
+      context: .
+      dockerfile: services/users-service/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://ofair_user:ofair_password@postgres:5432/ofair_dev
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: ofair_minio
+      S3_SECRET_KEY: ofair_minio_password
+      S3_BUCKET: ofair-uploads
+    ports:
+      - "8002:8000"
+    depends_on:
+      - postgres
+      - minio
+    volumes:
+      - ./services/users-service:/app
+      - ./libs:/app/libs
+
+  leads-service:
+    build:
+      context: .
+      dockerfile: services/leads-service/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://ofair_user:ofair_password@postgres:5432/ofair_dev
+      REDIS_URL: redis://redis:6379/1
+    ports:
+      - "8003:8000"
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./services/leads-service:/app
+      - ./libs:/app/libs
+
+  proposals-service:
+    build:
+      context: .
+      dockerfile: services/proposals-service/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://ofair_user:ofair_password@postgres:5432/ofair_dev
+    ports:
+      - "8004:8000"
+    depends_on:
+      - postgres
+    volumes:
+      - ./services/proposals-service:/app
+      - ./libs:/app/libs
+
+  referrals-service:
+    build:
+      context: .
+      dockerfile: services/referrals-service/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://ofair_user:ofair_password@postgres:5432/ofair_dev
+    ports:
+      - "8005:8000"
+    depends_on:
+      - postgres
+    volumes:
+      - ./services/referrals-service:/app
+      - ./libs:/app/libs
+
+  payments-service:
+    build:
+      context: .
+      dockerfile: services/payments-service/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://ofair_user:ofair_password@postgres:5432/ofair_dev
+      STRIPE_SECRET_KEY: sk_test_your_stripe_secret_key
+      STRIPE_PUBLISHABLE_KEY: pk_test_your_stripe_publishable_key
+    ports:
+      - "8006:8000"
+    depends_on:
+      - postgres
+    volumes:
+      - ./services/payments-service:/app
+      - ./libs:/app/libs
+
+  notifications-service:
+    build:
+      context: .
+      dockerfile: services/notifications-service/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://ofair_user:ofair_password@postgres:5432/ofair_dev
+      REDIS_URL: redis://redis:6379/2
+      TWILIO_ACCOUNT_SID: your_twilio_account_sid
+      TWILIO_AUTH_TOKEN: your_twilio_auth_token
+    ports:
+      - "8007:8000"
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./services/notifications-service:/app
+      - ./libs:/app/libs
+
+  admin-service:
+    build:
+      context: .
+      dockerfile: services/admin-service/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://ofair_user:ofair_password@postgres:5432/ofair_dev
+    ports:
+      - "8008:8000"
+    depends_on:
+      - postgres
+    volumes:
+      - ./services/admin-service:/app
+      - ./libs:/app/libs
+
+  pro-pwa:
+    build:
+      context: ./web/pro-pwa
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+    volumes:
+      - ./web/pro-pwa:/app
+      - ./libs/js-shared:/app/libs
+      - /app/node_modules
+
+  consumer-web:
+    build:
+      context: ./web/consumer-web
+    ports:
+      - "3001:3000"
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+    volumes:
+      - ./web/consumer-web:/app
+      - ./libs/js-shared:/app/libs
+      - /app/node_modules
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:

@@ -17,7 +17,7 @@ from twilio.rest import Client as TwilioClient
 from twilio.base.exceptions import TwilioException
 
 # Import shared libraries
-sys.path.append("/app/libs")
+sys.path.append("/root/repos/ofair_mvp/libs")
 from python_shared.config.settings import get_settings, Settings
 
 # Import local models

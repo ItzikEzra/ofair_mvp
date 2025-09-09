@@ -13,7 +13,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 # Import shared libraries
-sys.path.append("/app/libs")
+sys.path.append("/root/repos/ofair_mvp/libs")
 from python_shared.config.settings import get_settings, Settings
 
 # Import local models

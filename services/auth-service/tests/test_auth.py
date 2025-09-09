@@ -11,15 +11,15 @@ from fastapi.testclient import TestClient
 # Test imports
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'app'))
 
-from main import app
-from deps import get_redis_client, create_access_token, verify_token
-from models.auth import (
+from app.main import app
+from app.deps import get_redis_client, create_access_token, verify_token
+from app.models.auth import (
     SendOTPRequest, VerifyOTPRequest, ContactType,
     TokenClaims, UserRole, OTPRecord
 )
-from services.otp_service import otp_service
+from app.services.otp_service import otp_service
 
 
 class TestAuthService:

@@ -1,0 +1,1 @@
+- after you finish a task, if possible write tests

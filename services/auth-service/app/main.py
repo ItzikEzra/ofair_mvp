@@ -16,7 +16,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
 # Import shared libraries
-sys.path.append("/app/libs")
+sys.path.append("/root/repos/ofair_mvp/libs")
 from python_shared.config.settings import get_settings
 
 # Import local modules

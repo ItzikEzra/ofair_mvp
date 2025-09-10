@@ -425,48 +425,120 @@ The foundation is solid and production-ready. Next phase focuses on the core bus
 
   * Acceptance: Accepting proposal sets proposal status and creates payment record.
 
-### Epic 6 — Payments & Wallets
+### Epic 6 — Payments & Collections (MVP)
 
-* Story 6.1: Payments initiation and PSP sandbox integration (Stripe default).
+**Updated Specification – Payments & Collections (MVP)**
 
-  * Acceptance: Initiate payment returns PSP session; webhook marks `paid`.
-* Story 6.2: Implement commission calculation and ledger entries (platform revenue, referrer fee, pro net).
+**General Principle**
+* The platform does not process payments from customers.
+* Customers pay professionals directly, outside the platform.
+* The platform only manages commissions and settlements with professionals.
 
-  * Acceptance: After payment confirmation, wallet transactions created with correct amounts per formulas.
-* Story 6.3: Wallet balances & withdrawal request flow (admin approve).
+**Scenario A – Customer → Professional**
+* Customer uploads a job request.
+* Professional closes the deal and gets paid directly by the customer.
+* Platform charges the professional a 10% commission on the job value.
+* Commission is collected in a monthly settlement (invoice or auto-charge).
 
-  * Acceptance: Wallet shows pending & available balances; admin can process payouts.
+**Scenario B – Lead Transfer Between Professionals**
+* Professional A uploads a lead.
+* Professional B takes the lead, closes the job, and gets paid directly by the customer.
+* Platform calculates:
+  * Platform commission (5%).
+  * Revenue share owed to Professional A (percentage defined by A at lead creation).
 
-### Epic 7 — Notifications & Chat
+**Settlement Options:**
+1. **Direct Transfer (preferred):**
+   * Professional B pays the platform the full amount (commission + share).
+   * Platform then pays Professional A his share.
+2. **Balance Offset:**
+   * If Professional A owes money to the platform, his share is offset against his debts.
+   * Net balance is reflected in the monthly settlement.
 
-* Story 7.1: Implement notifications service with adapters (GreenAPI for WhatsApp, Twilio for SMS, SMTP for email, push).
+**Technical Notes**
+* No escrow.
+* Accounting logic tracks:
+  * Platform commissions owed.
+  * Inter-professional revenue shares owed.
+  * Net balances after offsets.
+* Monthly settlement cycle:
+  * Generate invoice/statement for each professional.
+  * Charge professionals automatically (Stripe / Cardcom / Tranzilla).
+  * Pay out positive balances (or roll forward as credits).
+
+**Benefits**
+* Simplifies MVP (no handling consumer payments).
+* Supports commission-only and pro-to-pro referral revenue.
+* Reduces legal complexity (B2B only).
+* Provides full transparency via invoices and statements.
+
+### Epic 7 — Payment Module (Revised Implementation)
+
+**New Backlog – Payment Module (Epic)**
+
+**Goal:** Implement commission tracking, balance ledger, and monthly settlements for professionals.
+
+**Sprint 1 – Core Accounting Model**
+* Design database tables: transactions, balances, invoices.
+* Implement commission calculator (for Scenario A + B).
+* Implement revenue share calculator (Scenario B).
+* Unit tests for calculation logic.
+
+**Sprint 2 – Balance & Ledger**
+* Implement balance ledger per professional.
+* Add offset logic (netting debts vs. credits).
+* Build API: /balances/{pro_id} (returns current state).
+
+**Sprint 3 – Invoicing**
+* Generate monthly invoices (PDF).
+* Email/SMS notifications for new invoices.
+* API: /invoices/{pro_id}.
+
+**Sprint 4 – Payments Integration**
+* Integrate with payment gateway (Stripe/Cardcom/Tranzilla).
+* Auto-charge professionals with saved payment method.
+* Handle failed payments (retry + notify).
+
+**Sprint 5 – Payouts to Professionals**
+* Implement payout engine for positive balances.
+* Option: manual payout or auto-credit to next invoice.
+* API: /payouts/{pro_id}.
+
+**Sprint 6 – Reporting & Admin Tools**
+* Admin dashboard for commissions and balances.
+* Export financial reports (CSV/Excel).
+* Fraud/misuse alerts (e.g. unpaid balances).
+
+### Epic 8 — Notifications & Chat
+
+* Story 8.1: Implement notifications service with adapters (GreenAPI for WhatsApp, Twilio for SMS, SMTP for email, push).
 
   * Acceptance: Notification events queued deliver templated messages; preferences respected.
-* Story 7.2: Implement in-app text chat (WebSocket or long-polling).
+* Story 8.2: Implement in-app text chat (WebSocket or long-polling).
 
   * Acceptance: Real-time text messages between owner and proposer with read-state; no file attachments.
 
-### Epic 8 — Ratings & Reviews
+### Epic 9 — Ratings & Reviews
 
-* Story 8.1: Implement rating submission & aggregation.
+* Story 9.1: Implement rating submission & aggregation.
 
   * Acceptance: After job closure, client can submit numeric (1–5) and free-text review; pro's aggregate updated.
-* Story 8.2: Option for semi-anonymous display (show name & city only).
+* Story 9.2: Option for semi-anonymous display (show name & city only).
 
   * Acceptance: Reviews appear public with configured anonymity.
 
-### Epic 9 — Admin & Backoffice
+### Epic 10 — Admin & Backoffice
 
-* Story 9.1: Build admin dashboard for leads, disputes, payouts, reports.
+* Story 10.1: Build admin dashboard for leads, disputes, payouts, reports.
 
   * Acceptance: Admin can filter leads, view all PII (audit logs created), and resolve disputes.
 
-### Epic 10 — QA, Testing & Hardening
+### Epic 11 — QA, Testing & Hardening
 
-* Story 10.1: Unit tests for all services, integration tests for payment & referral flows, E2E for primary user journeys.
+* Story 11.1: Unit tests for all services, integration tests for payment & referral flows, E2E for primary user journeys.
 
   * Acceptance: Test coverage target (e.g., 70%) and CI gates.
-* Story 10.2: Load testing for lead board & notifications.
+* Story 11.2: Load testing for lead board & notifications.
 
 ---
 
@@ -802,6 +874,28 @@ Tell me which of the "Next Deliverables" you want me to generate first and I wil
 * Shared libs reduce duplication: pydantic models, db utilities, auth clients.
 * Use workspace tooling (pnpm/workspaces or poetry + task runner) to run multi-service dev.
 * Each service owns its Dockerfile and has a simple `docker-compose.override.yml` for local dev.
+
+**Repo Structure – Additions for Payment Module**
+
+```
+/ofair
+  /backend
+    /payments
+      /models   # DB models for transactions, balances, invoices
+      /services # Commission calculator, settlement engine
+      /api      # Endpoints: balances, invoices, payouts
+      /tasks    # Cron jobs for monthly settlements
+  /frontend
+    /pro-app
+      /screens/Payments
+        - BalanceScreen.tsx
+        - InvoiceList.tsx
+        - PaymentMethod.tsx
+    /admin-dashboard
+      /screens/Finance
+        - CommissionReport.tsx
+        - Payouts.tsx
+```
 
 ---
 

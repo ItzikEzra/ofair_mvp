@@ -1,0 +1,57 @@
+# FastAPI and web server
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+gunicorn==21.2.0
+
+# Authentication and security
+python-jose[cryptography]==3.3.0
+python-multipart==0.0.6
+
+# Database and Redis
+redis[hiredis]==5.0.1
+asyncpg==0.29.0
+sqlalchemy[asyncio]==2.0.23
+alembic==1.13.0
+
+# HTTP clients and file handling
+httpx==0.25.2
+aiofiles==23.2.1
+
+# Storage (S3/MinIO)
+boto3==1.34.0
+botocore==1.34.0
+
+# Rate limiting and middleware
+slowapi==0.1.9
+
+# Configuration and environment
+pydantic==2.5.0
+pydantic-settings==2.1.0
+python-dotenv==1.0.0
+
+# Logging and monitoring
+structlog==23.2.0
+
+# Date and time handling
+python-dateutil==2.8.2
+
+# Hebrew text processing and validation
+unicodedata2==15.1.0
+regex==2023.10.3
+python-bidi==0.4.2
+arabic-reshaper==3.0.0
+
+# Image processing for media uploads
+Pillow==10.1.0
+
+# File type detection
+python-magic==0.4.27
+
+# Email validation
+email-validator==2.1.0
+
+# Development and debugging
+python-json-logger==2.0.7
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-mock==3.12.0

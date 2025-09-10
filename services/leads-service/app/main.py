@@ -29,12 +29,12 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
 # Import shared configuration
-sys.path.append("/root/repos/ofair_mvp/libs")
+sys.path.append("/app/libs")
 from python_shared.config.settings import get_settings
 
 # Import local modules
-from .deps import get_limiter, close_redis_client, check_database_health, check_redis_health
-from .api import leads, lead_board
+from deps import get_limiter, close_redis_client, check_database_health, check_redis_health
+from api import leads, lead_board
 
 # Configure logging
 logging.basicConfig(

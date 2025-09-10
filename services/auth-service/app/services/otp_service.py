@@ -17,12 +17,11 @@ from twilio.rest import Client as TwilioClient
 from twilio.base.exceptions import TwilioException
 
 # Import shared libraries
-sys.path.append("/root/repos/ofair_mvp/libs")
 from python_shared.config.settings import get_settings, Settings
 
 # Import local models
-from models.auth import ContactType, OTPRecord
-from deps import get_redis_client
+from ..models.auth import ContactType, OTPRecord
+from ..deps import get_redis_client
 
 logger = logging.getLogger(__name__)
 

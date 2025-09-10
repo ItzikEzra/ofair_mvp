@@ -19,11 +19,11 @@ sys.path.append("/app/libs")
 
 from python_shared.config.settings import get_settings
 from python_shared.database.connection import get_db_engine
-from deps import get_limiter, close_redis_client
+from .deps import get_limiter, close_redis_client
 
 # Import API routers
-from api.users import router as users_router
-from api.professionals import router as professionals_router
+from .api.users import router as users_router
+from .api.professionals import router as professionals_router
 
 # Configure logging
 logging.basicConfig(

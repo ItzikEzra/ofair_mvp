@@ -4,7 +4,7 @@ FROM python:3.11-slim as base
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH="/app" \
+    PYTHONPATH="/app:/app/libs" \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
@@ -21,11 +21,11 @@ RUN addgroup --system app && adduser --system --group app
 WORKDIR /app
 
 # Copy requirements first for better caching
-COPY requirements.txt .
+COPY services/auth-service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy shared libraries
-COPY --chown=app:app libs/python-shared /app/libs/python-shared
+COPY --chown=app:app libs/python_shared /app/libs/python_shared
 
 # Copy application code
 COPY --chown=app:app services/auth-service/app /app
@@ -41,7 +41,7 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 # Run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
 
 # Development stage
@@ -58,11 +58,11 @@ RUN pip install --no-cache-dir -r requirements-dev.txt
 USER app
 
 # Development command with auto-reload
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
 
 # Production stage
 FROM base as prod
 
 # Production command
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]

@@ -16,12 +16,11 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
 # Import shared libraries
-sys.path.append("/root/repos/ofair_mvp/libs")
 from python_shared.config.settings import get_settings
 
 # Import local modules
-from api.auth import router as auth_router
-from deps import get_redis_client, get_limiter
+from .api.auth import router as auth_router
+from .deps import get_redis_client, get_limiter
 
 # Configure logging
 logging.basicConfig(

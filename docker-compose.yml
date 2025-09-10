@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: ofair_user
       POSTGRES_PASSWORD: ofair_password
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
@@ -39,6 +39,11 @@ services:
     environment:
       DATABASE_URL: postgresql://ofair_user:ofair_password@postgres:5432/ofair_dev
       REDIS_URL: redis://redis:6379/0
+      JWT_SECRET_KEY: "ofair_jwt_secret_key_development_only_change_in_production"
+      S3_ACCESS_KEY: "ofair_minio"
+      S3_SECRET_KEY: "ofair_minio_password"
+      S3_BUCKET: "ofair-uploads"
+      S3_ENDPOINT: "http://minio:9000"
     ports:
       - "8001:8000"
     depends_on:
@@ -54,6 +59,8 @@ services:
       dockerfile: services/users-service/Dockerfile
     environment:
       DATABASE_URL: postgresql://ofair_user:ofair_password@postgres:5432/ofair_dev
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET_KEY: "ofair_jwt_secret_key_development_only_change_in_production"
       S3_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY: ofair_minio
       S3_SECRET_KEY: ofair_minio_password

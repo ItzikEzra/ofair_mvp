@@ -4,7 +4,7 @@ FROM python:3.11-slim as base
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH="/app" \
+    PYTHONPATH="/app:/app/libs" \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
@@ -28,14 +28,14 @@ RUN addgroup --system app && adduser --system --group app
 WORKDIR /app
 
 # Copy requirements first for better caching
-COPY requirements.txt .
+COPY services/proposals-service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy shared libraries
 COPY --chown=app:app libs/python_shared /app/libs/python_shared
 
 # Copy application code
-COPY --chown=app:app services/proposals-service/app /app
+COPY --chown=app:app services/proposals-service/app/ /app/
 
 # Switch to non-root user
 USER app

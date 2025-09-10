@@ -13,11 +13,10 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 # Import shared libraries
-sys.path.append("/root/repos/ofair_mvp/libs")
 from python_shared.config.settings import get_settings, Settings
 
 # Import local models
-from models.auth import TokenClaims, UserRole, ContactType
+from .models.auth import TokenClaims, UserRole, ContactType
 
 logger = logging.getLogger(__name__)
 

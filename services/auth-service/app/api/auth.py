@@ -12,24 +12,23 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 # Import shared libraries
-sys.path.append("/app/libs")
 from python_shared.config.settings import get_settings
 
 # Import local modules
-from models.auth import (
+from ..models.auth import (
     SendOTPRequest, SendOTPResponse,
     VerifyOTPRequest, VerifyOTPResponse,
     RefreshTokenRequest, RefreshTokenResponse,
     RevokeTokenRequest, RevokeTokenResponse,
     TokenData, TokenClaims, UserStatus, UserRole
 )
-from deps import (
+from ..deps import (
     get_redis_client, get_current_user, get_limiter,
     create_access_token, verify_token,
     check_otp_rate_limit, check_verification_rate_limit,
     mask_contact
 )
-from services.otp_service import otp_service
+from ..services.otp_service import otp_service
 
 logger = logging.getLogger(__name__)
 

@@ -1,76 +1,46 @@
-# Multi-stage build for Notifications Service
-FROM python:3.11-slim as builder
+# Simplified build for Notifications Service
+FROM python:3.11-slim as base
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV POETRY_NO_INTERACTION=1
-ENV POETRY_VENV_IN_PROJECT=1
-ENV POETRY_CACHE_DIR=/opt/poetry-cache
+ENV PYTHONPATH="/app:/app/libs"
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Poetry
-RUN pip install poetry
-
 # Set work directory
 WORKDIR /app
 
-# Copy Poetry files
-COPY pyproject.toml poetry.lock* ./
+# Copy requirements file
+COPY services/notifications-service/requirements.txt .
 
-# Configure Poetry and install dependencies
-RUN poetry config virtualenvs.create true \
-    && poetry config virtualenvs.in-project true \
-    && poetry install --only=main --no-dev && rm -rf $POETRY_CACHE_DIR
-
-# Production stage
-FROM python:3.11-slim as production
-
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV PATH="/app/.venv/bin:$PATH"
-
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/* \
-    && useradd --create-home --shell /bin/bash app
-
-# Set work directory
-WORKDIR /app
-
-# Copy virtual environment from builder stage
-COPY --from=builder --chown=app:app /app/.venv /app/.venv
-
-# Copy application code
-COPY --chown=app:app ./app ./app
-COPY --chown=app:app ./scripts ./scripts
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy shared libraries
-COPY --from=builder --chown=app:app /app/libs/python_shared /app/libs/python_shared
+COPY libs/python_shared /app/libs/python_shared
 
-# Set Python path to include shared libraries
-ENV PYTHONPATH=/app:/app/libs/python_shared:$PYTHONPATH
+# Copy application code
+COPY services/notifications-service/app/ /app/
 
-# Create directories for logs and uploads
-RUN mkdir -p /app/logs /app/uploads \
-    && chown -R app:app /app/logs /app/uploads
+# Create non-root user
+RUN useradd --create-home --shell /bin/bash app \
+    && chown -R app:app /app
 
 # Switch to non-root user
 USER app
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8000/health')" || exit 1
+    CMD curl -f http://localhost:8000/health || exit 1
 
 # Expose port
 EXPOSE 8000
 
 # Default command
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

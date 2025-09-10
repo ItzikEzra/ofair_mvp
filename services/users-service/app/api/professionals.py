@@ -20,7 +20,7 @@ from python_shared.database.models import (
     UserRole
 )
 
-from deps import (
+from ..deps import (
     get_current_active_user, 
     get_db_session, 
     set_row_level_security,
@@ -32,7 +32,7 @@ from deps import (
     validate_specialties,
     validate_file_upload
 )
-from models.professionals import (
+from ..models.professionals import (
     Professional as ProfessionalModel,
     ProfessionalCreate,
     ProfessionalUpdate,
@@ -44,8 +44,8 @@ from models.professionals import (
     CertificateUploadRequest,
     CertificateUploadResponse
 )
-from services.s3_service import S3Service
-from services.professional_service import ProfessionalService
+from ..services.s3_service import S3Service
+from ..services.professional_service import ProfessionalService
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

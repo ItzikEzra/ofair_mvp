@@ -14,7 +14,7 @@ from sqlalchemy.orm import joinedload
 sys.path.append("/app/libs")
 from python_shared.database.models import User, UserProfile, UserRole
 
-from deps import (
+from ..deps import (
     get_current_active_user, 
     get_db_session, 
     set_row_level_security,
@@ -22,7 +22,7 @@ from deps import (
     validate_hebrew_text,
     normalize_israeli_phone
 )
-from models.users import (
+from ..models.users import (
     UserMe, 
     UserUpdate, 
     UserProfile as UserProfileModel,

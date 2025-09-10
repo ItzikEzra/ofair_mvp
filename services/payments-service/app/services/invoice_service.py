@@ -1,0 +1,437 @@
+import asyncio
+from typing import List, Optional, Dict, Any
+from datetime import datetime, timedelta
+from decimal import Decimal, ROUND_HALF_UP
+import uuid
+from io import BytesIO
+
+from ..models.payments import (
+    InvoiceResponse, InvoiceLineItem, InvoiceStatus, InvoiceDB
+)
+from ..database import get_database
+from ..utils.pdf_generator import InvoicePDFGenerator
+from ..utils.hebrew_utils import format_hebrew_currency
+
+class InvoiceService:
+    def __init__(self):
+        self.db = get_database()
+        self.pdf_generator = InvoicePDFGenerator()
+        self.vat_rate = Decimal('0.17')  # 17% VAT in Israel
+    
+    async def generate_monthly_invoice(
+        self,
+        professional_id: str,
+        month: int,
+        year: int,
+        created_by: str
+    ) -> InvoiceResponse:
+        """
+        יצירת חשבונית חודשית - Generate monthly invoice for professional
+        """
+        # Check if invoice already exists for this month
+        existing_invoice = await self.db.get_invoice_by_month(
+            professional_id, month, year
+        )
+        if existing_invoice:
+            raise ValueError(f"כבר קיימת חשבונית לחודש {month}/{year}")
+        
+        # Get all unpaid commissions for the month
+        from .commission_service import CommissionService
+        commission_service = CommissionService()
+        
+        monthly_commissions = await commission_service.calculate_monthly_commissions(
+            professional_id, month, year
+        )
+        
+        if monthly_commissions['total_commission_amount'] == Decimal('0'):
+            raise ValueError("אין עמלות לחיוב לחודש זה")
+        
+        # Get professional info
+        professional_info = await self.db.get_professional_info(professional_id)
+        if not professional_info:
+            raise ValueError("מקצוען לא נמצא")
+        
+        # Generate invoice details
+        invoice_id = str(uuid.uuid4())
+        invoice_number = await self._generate_invoice_number(year, month)
+        issue_date = datetime.utcnow()
+        due_date = issue_date + timedelta(days=30)  # 30 days payment terms
+        
+        # Calculate amounts
+        subtotal = monthly_commissions['total_commission_amount']
+        vat_amount = (subtotal * self.vat_rate).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP
+        )
+        total_amount = subtotal + vat_amount
+        
+        # Create line items
+        line_items = await self._create_line_items(monthly_commissions['commissions'])
+        
+        invoice_data = {
+            "id": invoice_id,
+            "professional_id": professional_id,
+            "invoice_number": invoice_number,
+            "month": month,
+            "year": year,
+            "issue_date": issue_date,
+            "due_date": due_date,
+            "status": InvoiceStatus.DRAFT.value,
+            "subtotal": subtotal,
+            "vat_rate": self.vat_rate,
+            "vat_amount": vat_amount,
+            "total_amount": total_amount,
+            "created_by": created_by,
+            "created_at": issue_date
+        }
+        
+        # Insert invoice
+        await self.db.insert_invoice(invoice_data)
+        
+        # Insert line items
+        for line_item in line_items:
+            line_item_data = {
+                "invoice_id": invoice_id,
+                "description": line_item.description,
+                "amount": line_item.amount,
+                "commission_id": line_item.commission_id,
+                "job_reference": line_item.job_reference
+            }
+            await self.db.insert_invoice_line_item(line_item_data)
+        
+        # Generate PDF
+        pdf_path = await self._generate_invoice_pdf(
+            invoice_data, line_items, professional_info
+        )
+        
+        # Update invoice with PDF path
+        await self.db.update_invoice(invoice_id, {
+            "pdf_path": pdf_path,
+            "status": InvoiceStatus.SENT.value
+        })
+        
+        # Mark commissions as invoiced
+        for commission in monthly_commissions['commissions']:
+            await commission_service.mark_commission_invoiced(
+                commission.id, invoice_id, created_by
+            )
+        
+        # Log invoice creation
+        await self._log_invoice_action(invoice_id, "invoice_created", created_by)
+        
+        return InvoiceResponse(
+            id=invoice_id,
+            professional_id=professional_id,
+            professional_name=professional_info.get('name', ''),
+            invoice_number=invoice_number,
+            month=month,
+            year=year,
+            issue_date=issue_date,
+            due_date=due_date,
+            status=InvoiceStatus.SENT,
+            subtotal=subtotal,
+            vat_amount=vat_amount,
+            total_amount=total_amount,
+            line_items=line_items,
+            pdf_url=pdf_path,
+            payment_url=None,  # Would be generated by payment gateway
+            created_by=created_by
+        )
+    
+    async def get_invoice(self, invoice_id: str) -> Optional[InvoiceResponse]:
+        """
+        קבלת פרטי חשבונית - Get invoice details
+        """
+        invoice_data = await self.db.get_invoice(invoice_id)
+        if not invoice_data:
+            return None
+        
+        # Get professional info
+        professional_info = await self.db.get_professional_info(
+            invoice_data['professional_id']
+        )
+        
+        # Get line items
+        line_items_data = await self.db.get_invoice_line_items(invoice_id)
+        line_items = [
+            InvoiceLineItem(**item) for item in line_items_data
+        ]
+        
+        return InvoiceResponse(
+            id=invoice_data['id'],
+            professional_id=invoice_data['professional_id'],
+            professional_name=professional_info.get('name', ''),
+            invoice_number=invoice_data['invoice_number'],
+            month=invoice_data['month'],
+            year=invoice_data['year'],
+            issue_date=invoice_data['issue_date'],
+            due_date=invoice_data['due_date'],
+            status=InvoiceStatus(invoice_data['status']),
+            subtotal=invoice_data['subtotal'],
+            vat_amount=invoice_data['vat_amount'],
+            total_amount=invoice_data['total_amount'],
+            line_items=line_items,
+            pdf_url=invoice_data.get('pdf_path'),
+            payment_url=None,
+            created_by=invoice_data['created_by']
+        )
+    
+    async def get_professional_invoices(
+        self,
+        professional_id: str,
+        status: Optional[InvoiceStatus] = None,
+        limit: int = 50,
+        offset: int = 0
+    ) -> List[InvoiceResponse]:
+        """
+        קבלת חשבוניות המקצוען - Get professional's invoices
+        """
+        invoices_data = await self.db.get_professional_invoices(
+            professional_id, status.value if status else None, limit, offset
+        )
+        
+        invoices = []
+        for invoice_data in invoices_data:
+            # Get professional info
+            professional_info = await self.db.get_professional_info(professional_id)
+            
+            # Get line items (limited for list view)
+            line_items_data = await self.db.get_invoice_line_items(
+                invoice_data['id'], limit=5
+            )
+            line_items = [
+                InvoiceLineItem(**item) for item in line_items_data
+            ]
+            
+            invoices.append(InvoiceResponse(
+                id=invoice_data['id'],
+                professional_id=invoice_data['professional_id'],
+                professional_name=professional_info.get('name', ''),
+                invoice_number=invoice_data['invoice_number'],
+                month=invoice_data['month'],
+                year=invoice_data['year'],
+                issue_date=invoice_data['issue_date'],
+                due_date=invoice_data['due_date'],
+                status=InvoiceStatus(invoice_data['status']),
+                subtotal=invoice_data['subtotal'],
+                vat_amount=invoice_data['vat_amount'],
+                total_amount=invoice_data['total_amount'],
+                line_items=line_items,
+                pdf_url=invoice_data.get('pdf_path'),
+                payment_url=None,
+                created_by=invoice_data['created_by']
+            ))
+        
+        return invoices
+    
+    async def mark_invoice_paid(
+        self,
+        invoice_id: str,
+        payment_id: str,
+        paid_by: str
+    ):
+        """
+        סימון חשבונית כשולמה - Mark invoice as paid
+        """
+        invoice = await self.get_invoice(invoice_id)
+        if not invoice:
+            raise ValueError("חשבונית לא נמצאה")
+        
+        if invoice.status == InvoiceStatus.PAID:
+            raise ValueError("החשבונית כבר סומנה כשולמה")
+        
+        update_data = {
+            "status": InvoiceStatus.PAID.value,
+            "paid_at": datetime.utcnow()
+        }
+        
+        await self.db.update_invoice(invoice_id, update_data)
+        
+        # Update all related commissions as paid
+        line_items_data = await self.db.get_invoice_line_items(invoice_id)
+        
+        from .commission_service import CommissionService
+        commission_service = CommissionService()
+        
+        for line_item in line_items_data:
+            if line_item.get('commission_id'):
+                await commission_service.mark_commission_paid(
+                    line_item['commission_id'], payment_id, paid_by
+                )
+        
+        # Log payment
+        await self._log_invoice_action(
+            invoice_id, f"invoice_paid_{payment_id}", paid_by
+        )
+    
+    async def cancel_invoice(
+        self,
+        invoice_id: str,
+        cancelled_by: str,
+        reason: Optional[str] = None
+    ):
+        """
+        ביטול חשבונית - Cancel invoice
+        """
+        invoice = await self.get_invoice(invoice_id)
+        if not invoice:
+            raise ValueError("חשבונית לא נמצאה")
+        
+        if invoice.status == InvoiceStatus.PAID:
+            raise ValueError("לא ניתן לבטל חשבונית ששולמה")
+        
+        update_data = {
+            "status": InvoiceStatus.CANCELLED.value,
+            "cancelled_at": datetime.utcnow(),
+            "cancellation_reason": reason
+        }
+        
+        await self.db.update_invoice(invoice_id, update_data)
+        
+        # Revert commission statuses back to "recorded"
+        line_items_data = await self.db.get_invoice_line_items(invoice_id)
+        
+        for line_item in line_items_data:
+            if line_item.get('commission_id'):
+                await self.db.update_commission(line_item['commission_id'], {
+                    "status": "recorded",
+                    "invoice_id": None
+                })
+        
+        # Log cancellation
+        await self._log_invoice_action(
+            invoice_id, f"invoice_cancelled_{reason}", cancelled_by
+        )
+    
+    async def get_overdue_invoices(self) -> List[InvoiceResponse]:
+        """
+        קבלת חשבוניות פגות תוקף - Get overdue invoices
+        """
+        overdue_data = await self.db.get_overdue_invoices()
+        
+        invoices = []
+        for invoice_data in overdue_data:
+            # Get professional info
+            professional_info = await self.db.get_professional_info(
+                invoice_data['professional_id']
+            )
+            
+            # Get line items
+            line_items_data = await self.db.get_invoice_line_items(
+                invoice_data['id']
+            )
+            line_items = [
+                InvoiceLineItem(**item) for item in line_items_data
+            ]
+            
+            invoices.append(InvoiceResponse(
+                id=invoice_data['id'],
+                professional_id=invoice_data['professional_id'],
+                professional_name=professional_info.get('name', ''),
+                invoice_number=invoice_data['invoice_number'],
+                month=invoice_data['month'],
+                year=invoice_data['year'],
+                issue_date=invoice_data['issue_date'],
+                due_date=invoice_data['due_date'],
+                status=InvoiceStatus.OVERDUE,
+                subtotal=invoice_data['subtotal'],
+                vat_amount=invoice_data['vat_amount'],
+                total_amount=invoice_data['total_amount'],
+                line_items=line_items,
+                pdf_url=invoice_data.get('pdf_path'),
+                payment_url=None,
+                created_by=invoice_data['created_by']
+            ))
+        
+        return invoices
+    
+    async def _generate_invoice_number(self, year: int, month: int) -> str:
+        """Generate unique invoice number"""
+        # Get count of invoices for this month
+        count = await self.db.get_monthly_invoice_count(year, month)
+        
+        # Format: OFAIR-YYYY-MM-NNN
+        return f"OFAIR-{year:04d}-{month:02d}-{count+1:03d}"
+    
+    async def _create_line_items(
+        self, 
+        commissions: List[Any]
+    ) -> List[InvoiceLineItem]:
+        """Create line items from commissions"""
+        line_items = []
+        
+        # Group commissions by type for cleaner invoice
+        customer_jobs = []
+        referral_jobs = []
+        
+        for commission in commissions:
+            if commission.commission_type.value == "customer_job":
+                customer_jobs.append(commission)
+            else:
+                referral_jobs.append(commission)
+        
+        # Add customer job commissions
+        if customer_jobs:
+            total_customer_commission = sum(c.commission_amount for c in customer_jobs)
+            job_refs = [c.job_id[:8] for c in customer_jobs[:3]]  # Show first 3 job IDs
+            if len(customer_jobs) > 3:
+                job_refs.append(f"ועוד {len(customer_jobs)-3}")
+            
+            line_items.append(InvoiceLineItem(
+                description=f"עמלות פלטפורמה ({len(customer_jobs)} עבודות) - {', '.join(job_refs)}",
+                amount=total_customer_commission,
+                job_reference=f"{len(customer_jobs)} עבודות לקוחות"
+            ))
+        
+        # Add referral job commissions
+        if referral_jobs:
+            total_referral_commission = sum(c.commission_amount for c in referral_jobs)
+            job_refs = [c.job_id[:8] for c in referral_jobs[:3]]  # Show first 3 job IDs
+            if len(referral_jobs) > 3:
+                job_refs.append(f"ועוד {len(referral_jobs)-3}")
+            
+            line_items.append(InvoiceLineItem(
+                description=f"עמלות הפניות ({len(referral_jobs)} הפניות) - {', '.join(job_refs)}",
+                amount=total_referral_commission,
+                job_reference=f"{len(referral_jobs)} עבודות הפניה"
+            ))
+        
+        return line_items
+    
+    async def _generate_invoice_pdf(
+        self,
+        invoice_data: Dict[str, Any],
+        line_items: List[InvoiceLineItem],
+        professional_info: Dict[str, Any]
+    ) -> str:
+        """Generate invoice PDF and return file path"""
+        pdf_content = await self.pdf_generator.generate_invoice_pdf(
+            invoice_data, line_items, professional_info
+        )
+        
+        # Save PDF to storage (S3/MinIO)
+        filename = f"invoices/{invoice_data['id']}.pdf"
+        pdf_path = await self._save_pdf_to_storage(filename, pdf_content)
+        
+        return pdf_path
+    
+    async def _save_pdf_to_storage(self, filename: str, pdf_content: bytes) -> str:
+        """Save PDF to storage and return URL"""
+        # This would integrate with S3/MinIO
+        # For now, return a mock path
+        return f"/storage/{filename}"
+    
+    async def _log_invoice_action(
+        self,
+        invoice_id: str,
+        action: str,
+        performed_by: str
+    ):
+        """Log invoice actions for audit trail"""
+        log_data = {
+            "invoice_id": invoice_id,
+            "action": action,
+            "performed_by": performed_by,
+            "timestamp": datetime.utcnow()
+        }
+        
+        await self.db.insert_invoice_log(log_data)

@@ -58,8 +58,8 @@ class SettlementService:
         professional_id: str,
         amount: Decimal,
         payout_method: PayoutMethod,
-        bank_details: Optional[BankDetails] = None,
-        created_by: str
+        created_by: str,
+        bank_details: Optional[BankDetails] = None
     ) -> PayoutResponse:
         """
         יצירת תשלום יוצא - Create payout to professional

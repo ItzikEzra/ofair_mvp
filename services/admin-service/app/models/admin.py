@@ -60,20 +60,20 @@ class AdminLoginRequest(BaseModel):
 class CreateAdminRequest(BaseModel):
     """בקשת יצירת אדמין - Create admin request"""
     username: str = Field(..., min_length=3, max_length=50)
-    email: str = Field(..., regex=r'^[^@]+@[^@]+\.[^@]+$')
+    email: str = Field(..., pattern=r'^[^@]+@[^@]+\.[^@]+$')
     full_name: str = Field(..., min_length=2, max_length=100)
     role: AdminRole
-    phone_number: Optional[str] = Field(None, regex=r'^\+972[0-9]{9}$')
+    phone_number: Optional[str] = Field(None, pattern=r'^\+972[0-9]{9}$')
     is_active: bool = Field(default=True)
     permissions: List[str] = Field(default_factory=list)
     notes: Optional[str] = Field(None, max_length=500)
 
 class UpdateAdminRequest(BaseModel):
     """בקשת עדכון אדמין - Update admin request"""
-    email: Optional[str] = Field(None, regex=r'^[^@]+@[^@]+\.[^@]+$')
+    email: Optional[str] = Field(None, pattern=r'^[^@]+@[^@]+\.[^@]+$')
     full_name: Optional[str] = Field(None, min_length=2, max_length=100)
     role: Optional[AdminRole] = None
-    phone_number: Optional[str] = Field(None, regex=r'^\+972[0-9]{9}$')
+    phone_number: Optional[str] = Field(None, pattern=r'^\+972[0-9]{9}$')
     is_active: Optional[bool] = None
     permissions: Optional[List[str]] = None
     notes: Optional[str] = Field(None, max_length=500)
@@ -81,7 +81,7 @@ class UpdateAdminRequest(BaseModel):
 class BulkUserActionRequest(BaseModel):
     """בקשת פעולה נפחית על משתמשים - Bulk user action request"""
     user_ids: List[str] = Field(..., min_items=1, max_items=1000)
-    action: str = Field(..., regex=r'^(suspend|activate|delete|export)$')
+    action: str = Field(..., pattern=r'^(suspend|activate|delete|export)$')
     reason: str = Field(..., min_length=5, max_length=200)
     notify_users: bool = Field(default=False)
 
@@ -106,11 +106,11 @@ class AuditLogSearchRequest(BaseModel):
 
 class DataExportRequest(BaseModel):
     """בקשת יצוא נתונים - Data export request"""
-    entity_type: str = Field(..., regex=r'^(users|leads|proposals|payments|referrals)$')
+    entity_type: str = Field(..., pattern=r'^(users|leads|proposals|payments|referrals)$')
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     filters: Dict[str, Any] = Field(default_factory=dict)
-    format: str = Field(default="csv", regex=r'^(csv|xlsx|json)$')
+    format: str = Field(default="csv", pattern=r'^(csv|xlsx|json)$')
     include_pii: bool = Field(default=False)  # כלל מידע אישי
 
 # Response Models

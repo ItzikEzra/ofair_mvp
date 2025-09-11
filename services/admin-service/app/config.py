@@ -3,6 +3,7 @@ from typing import Optional, List
 
 class Settings(BaseSettings):
     # Database settings
+    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/ofair_admin"
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
     POSTGRES_USER: str = "postgres"

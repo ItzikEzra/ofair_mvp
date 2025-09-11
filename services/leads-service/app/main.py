@@ -44,8 +44,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler('/var/log/leads-service.log', mode='a')
+        logging.StreamHandler(sys.stdout)
     ]
 )
 
@@ -130,8 +129,8 @@ app = FastAPI(
     
     #### Authenticated Endpoints
     - `POST /leads/` - Create new lead (rate limited)
-    - `GET /leads/{id}` - Get lead details (PII based on access)
-    - `PUT /leads/{id}` - Update lead (owner only)
+    - `GET /leads/{{id}}` - Get lead details (PII based on access)
+    - `PUT /leads/{{id}}` - Update lead (owner only)
     - `GET /leads/my` - Get user's own leads
     - `GET /leads/search` - Advanced lead search
     
@@ -143,8 +142,8 @@ app = FastAPI(
     - `POST /leads/board/refresh` - Force cache refresh
     
     #### Lead Sharing & Referrals (Professional Access)
-    - `POST /leads/{id}/share` - Create referral to another professional
-    - `POST /leads/{id}/close` - Close lead and set final amount
+    - `POST /leads/{{id}}/share` - Create referral to another professional
+    - `POST /leads/{{id}}/close` - Close lead and set final amount
     
     ### Rate Limits
     - Lead creation: 3/hour (consumers), 5/hour (professionals)

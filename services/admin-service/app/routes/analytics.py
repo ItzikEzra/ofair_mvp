@@ -11,7 +11,7 @@ router = APIRouter()
 
 @router.get("/dashboard")
 async def get_dashboard_analytics(
-    period: str = Query("30d", regex="^(7d|30d|90d)$"),
+    period: str = Query("30d", pattern="^(7d|30d|90d)$"),
     admin_user: dict = Depends(verify_admin_token)
 ):
     """
@@ -186,8 +186,8 @@ async def get_real_time_analytics(
 
 @router.get("/trends")
 async def get_analytics_trends(
-    metric: str = Query(..., regex="^(users|leads|revenue|performance)$"),
-    period: str = Query("30d", regex="^(7d|30d|90d)$"),
+    metric: str = Query(..., pattern="^(users|leads|revenue|performance)$"),
+    period: str = Query("30d", pattern="^(7d|30d|90d)$"),
     admin_user: dict = Depends(require_permissions(["analytics.view"]))
 ):
     """

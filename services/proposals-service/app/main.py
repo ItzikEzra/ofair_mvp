@@ -44,8 +44,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler('/var/log/proposals-service.log', mode='a')
+        logging.StreamHandler(sys.stdout)
     ]
 )
 
@@ -132,16 +131,16 @@ app = FastAPI(
     
     #### Proposal Operations
     - `POST /proposals` - Submit proposal (verified professional only)
-    - `GET /proposals/{id}` - Get proposal details
-    - `PUT /proposals/{id}` - Update proposal (owner only)
-    - `POST /proposals/{id}/accept` - Accept proposal (lead owner)
-    - `POST /proposals/{id}/reject` - Reject proposal (lead owner)
+    - `GET /proposals/{{id}}` - Get proposal details
+    - `PUT /proposals/{{id}}` - Update proposal (owner only)
+    - `POST /proposals/{{id}}/accept` - Accept proposal (lead owner)
+    - `POST /proposals/{{id}}/reject` - Reject proposal (lead owner)
     
     #### Proposal Management
     - `GET /proposals/my` - Get user's proposals
-    - `GET /proposals/lead/{lead_id}` - Get proposals for a lead
-    - `POST /proposals/{id}/media` - Upload proposal media
-    - `DELETE /proposals/{id}/media/{media_id}` - Delete media file
+    - `GET /proposals/lead/{{lead_id}}` - Get proposals for a lead
+    - `POST /proposals/{{id}}/media` - Upload proposal media
+    - `DELETE /proposals/{{id}}/media/{{media_id}}` - Delete media file
     
     #### Status & Monitoring
     - `GET /health` - Service health check

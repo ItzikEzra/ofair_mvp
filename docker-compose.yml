@@ -101,10 +101,17 @@ services:
       dockerfile: services/proposals-service/Dockerfile
     environment:
       DATABASE_URL: postgresql://ofair_user:ofair_password@postgres:5432/ofair_dev
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET_KEY: "ofair_jwt_secret_key_development_only_change_in_production"
+      S3_ACCESS_KEY: "ofair_minio"
+      S3_SECRET_KEY: "ofair_minio_password"
+      S3_BUCKET: "ofair-uploads"
+      S3_ENDPOINT: "http://minio:9000"
     ports:
       - "8004:8000"
     depends_on:
       - postgres
+      - redis
     volumes:
       - ./services/proposals-service:/app
       - ./libs:/app/libs
@@ -115,10 +122,17 @@ services:
       dockerfile: services/referrals-service/Dockerfile
     environment:
       DATABASE_URL: postgresql://ofair_user:ofair_password@postgres:5432/ofair_dev
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET_KEY: "ofair_jwt_secret_key_development_only_change_in_production"
+      S3_ACCESS_KEY: "ofair_minio"
+      S3_SECRET_KEY: "ofair_minio_password"
+      S3_BUCKET: "ofair-uploads"
+      S3_ENDPOINT: "http://minio:9000"
     ports:
       - "8005:8000"
     depends_on:
       - postgres
+      - redis
     volumes:
       - ./services/referrals-service:/app
       - ./libs:/app/libs
@@ -129,12 +143,19 @@ services:
       dockerfile: services/payments-service/Dockerfile
     environment:
       DATABASE_URL: postgresql://ofair_user:ofair_password@postgres:5432/ofair_dev
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET_KEY: "ofair_jwt_secret_key_development_only_change_in_production"
+      S3_ACCESS_KEY: "ofair_minio"
+      S3_SECRET_KEY: "ofair_minio_password"
+      S3_BUCKET: "ofair-uploads"
+      S3_ENDPOINT: "http://minio:9000"
       STRIPE_SECRET_KEY: sk_test_your_stripe_secret_key
       STRIPE_PUBLISHABLE_KEY: pk_test_your_stripe_publishable_key
     ports:
       - "8006:8000"
     depends_on:
       - postgres
+      - redis
     volumes:
       - ./services/payments-service:/app
       - ./libs:/app/libs
@@ -163,10 +184,17 @@ services:
       dockerfile: services/admin-service/Dockerfile
     environment:
       DATABASE_URL: postgresql://ofair_user:ofair_password@postgres:5432/ofair_dev
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET_KEY: "ofair_jwt_secret_key_development_only_change_in_production"
+      S3_ACCESS_KEY: "ofair_minio"
+      S3_SECRET_KEY: "ofair_minio_password"
+      S3_BUCKET: "ofair-uploads"
+      S3_ENDPOINT: "http://minio:9000"
     ports:
       - "8008:8000"
     depends_on:
       - postgres
+      - redis
     volumes:
       - ./services/admin-service:/app
       - ./libs:/app/libs

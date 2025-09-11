@@ -22,7 +22,7 @@ from python_shared.database.models import (
 )
 from python_shared.config.settings import get_settings
 
-from ..models.proposals import (
+from models.proposals import (
     NotificationPayload, NotificationRequest, NotificationTypeEnum
 )
 

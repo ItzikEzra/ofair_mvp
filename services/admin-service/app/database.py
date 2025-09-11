@@ -17,18 +17,147 @@ class AdminDatabase:
         """Connect to database"""
         try:
             self.pool = await asyncpg.create_pool(
-                host=settings.POSTGRES_HOST,
-                port=settings.POSTGRES_PORT,
-                user=settings.POSTGRES_USER,
-                password=settings.POSTGRES_PASSWORD,
-                database=settings.POSTGRES_DB,
+                dsn=settings.DATABASE_URL,
                 min_size=5,
                 max_size=20,
                 command_timeout=30
             )
             logger.info("Connected to admin database")
+            
+            # Initialize admin tables if they don't exist
+            await self._init_tables()
+            
         except Exception as e:
             logger.error(f"Failed to connect to database: {e}")
+            raise
+    
+    async def _init_tables(self):
+        """Initialize admin tables if they don't exist"""
+        try:
+            async with self.pool.acquire() as conn:
+                # Admin users table
+                await conn.execute("""
+                    CREATE TABLE IF NOT EXISTS admin_users (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        username VARCHAR(50) UNIQUE NOT NULL,
+                        email VARCHAR(255) UNIQUE NOT NULL,
+                        full_name VARCHAR(100) NOT NULL,
+                        role VARCHAR(50) NOT NULL DEFAULT 'admin',
+                        phone_number VARCHAR(20),
+                        is_active BOOLEAN DEFAULT TRUE,
+                        permissions JSONB DEFAULT '[]'::jsonb,
+                        notes TEXT,
+                        password_hash VARCHAR(255) NOT NULL,
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ DEFAULT NOW(),
+                        last_login TIMESTAMPTZ,
+                        login_count INTEGER DEFAULT 0,
+                        created_by UUID,
+                        locked_until TIMESTAMPTZ,
+                        failed_login_attempts INTEGER DEFAULT 0
+                    )
+                """)
+                
+                # Admin sessions table
+                await conn.execute("""
+                    CREATE TABLE IF NOT EXISTS admin_sessions (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        admin_id UUID NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+                        ip_address INET,
+                        user_agent TEXT,
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        expires_at TIMESTAMPTZ NOT NULL,
+                        is_active BOOLEAN DEFAULT TRUE,
+                        last_activity TIMESTAMPTZ DEFAULT NOW()
+                    )
+                """)
+                
+                # Audit logs table
+                await conn.execute("""
+                    CREATE TABLE IF NOT EXISTS audit_logs (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        admin_id UUID REFERENCES admin_users(id),
+                        user_id UUID,
+                        event_type VARCHAR(50) NOT NULL DEFAULT 'system',
+                        action VARCHAR(100) NOT NULL,
+                        resource_type VARCHAR(50) NOT NULL,
+                        resource_id UUID,
+                        description TEXT,
+                        ip_address INET,
+                        user_agent TEXT,
+                        timestamp TIMESTAMPTZ DEFAULT NOW(),
+                        metadata JSONB DEFAULT '{}'::jsonb,
+                        severity VARCHAR(20) DEFAULT 'info',
+                        session_id UUID
+                    )
+                """)
+                
+                # System alerts table
+                await conn.execute("""
+                    CREATE TABLE IF NOT EXISTS system_alerts (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        type VARCHAR(50) NOT NULL,
+                        title VARCHAR(255) NOT NULL,
+                        description TEXT,
+                        severity VARCHAR(20) NOT NULL DEFAULT 'info',
+                        component VARCHAR(100),
+                        status VARCHAR(20) NOT NULL DEFAULT 'active',
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        resolved_at TIMESTAMPTZ,
+                        resolved_by UUID REFERENCES admin_users(id),
+                        metadata JSONB DEFAULT '{}'::jsonb
+                    )
+                """)
+                
+                # System configurations table
+                await conn.execute("""
+                    CREATE TABLE IF NOT EXISTS system_configurations (
+                        key VARCHAR(100) PRIMARY KEY,
+                        value JSONB,
+                        category VARCHAR(50) NOT NULL,
+                        description TEXT,
+                        is_sensitive BOOLEAN DEFAULT FALSE,
+                        last_updated TIMESTAMPTZ DEFAULT NOW(),
+                        updated_by UUID REFERENCES admin_users(id)
+                    )
+                """)
+                
+                # 2FA codes table
+                await conn.execute("""
+                    CREATE TABLE IF NOT EXISTS admin_2fa_codes (
+                        admin_id UUID PRIMARY KEY REFERENCES admin_users(id) ON DELETE CASCADE,
+                        code VARCHAR(10) NOT NULL,
+                        expires_at TIMESTAMPTZ NOT NULL,
+                        created_at TIMESTAMPTZ DEFAULT NOW()
+                    )
+                """)
+                
+                # Security logs table
+                await conn.execute("""
+                    CREATE TABLE IF NOT EXISTS security_logs (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        event_type VARCHAR(50) NOT NULL,
+                        ip_address INET,
+                        user_agent TEXT,
+                        admin_id UUID REFERENCES admin_users(id),
+                        timestamp TIMESTAMPTZ DEFAULT NOW(),
+                        details TEXT,
+                        severity VARCHAR(20) DEFAULT 'medium'
+                    )
+                """)
+                
+                # Create indexes for performance
+                await conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp DESC)")
+                await conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_logs_admin_id ON audit_logs(admin_id)")
+                await conn.execute("CREATE INDEX IF NOT EXISTS idx_admin_sessions_admin_id ON admin_sessions(admin_id)")
+                await conn.execute("CREATE INDEX IF NOT EXISTS idx_admin_sessions_expires ON admin_sessions(expires_at)")
+                await conn.execute("CREATE INDEX IF NOT EXISTS idx_system_alerts_status ON system_alerts(status)")
+                await conn.execute("CREATE INDEX IF NOT EXISTS idx_security_logs_timestamp ON security_logs(timestamp DESC)")
+                
+                logger.info("Admin database tables initialized successfully")
+                
+        except Exception as e:
+            logger.error(f"Failed to initialize admin tables: {e}")
             raise
     
     async def disconnect(self):

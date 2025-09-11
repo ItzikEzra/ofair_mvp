@@ -24,7 +24,7 @@ from python_shared.database.models import (
 )
 from python_shared.config.settings import get_settings
 
-from ..models.proposals import (
+from models.proposals import (
     ProposalCreateRequest, ProposalUpdateRequest, ProposalResponse,
     ProposalListResponse, ProposalListItem, ProposalStatsResponse,
     PiiRevelationResponse, MediaFileResponse, ProposalSearchFilters,
@@ -301,7 +301,7 @@ class ProposalService:
         Raises:
             ValueError: If business rules are violated
         """
-        from ..deps import get_s3_client, generate_media_url
+        from deps import get_s3_client, generate_media_url
         
         # Check proposal media count limit
         current_media_count = len(proposal.media_urls or [])
@@ -392,7 +392,7 @@ class ProposalService:
         Raises:
             ValueError: If business rules are violated
         """
-        from ..deps import get_s3_client
+        from deps import get_s3_client
         
         # Find media file by ID (simplified - in practice you'd have a media table)
         media_filename = None
@@ -482,7 +482,7 @@ class ProposalService:
         # Build media files list
         media_files = []
         if proposal.media_urls and can_see_full_details:
-            from ..deps import generate_media_url
+            from deps import generate_media_url
             
             for media_url in proposal.media_urls:
                 try:

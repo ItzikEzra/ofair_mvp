@@ -19,7 +19,7 @@ sys.path.append("/root/repos/ofair_mvp/libs")
 from python_shared.database.connection import get_db
 from python_shared.database.models import User, Professional, Lead, Proposal, ProposalStatus
 
-from ..deps import (
+from deps import (
     get_current_user, get_current_professional, get_current_user_optional,
     require_proposal_access, require_proposal_owner, require_lead_owner,
     check_proposal_creation_rate_limit, check_proposal_update_rate_limit,
@@ -27,15 +27,15 @@ from ..deps import (
     log_pii_revelation, validate_proposal_status_transition, can_modify_proposal,
     can_upload_media_to_proposal, get_limiter
 )
-from ..models.proposals import (
+from models.proposals import (
     ProposalCreateRequest, ProposalUpdateRequest, ProposalActionRequest,
     MediaUploadRequest, ProposalResponse, ProposalListResponse, ProposalListItem,
     ProposalStatsResponse, PiiRevelationResponse, ValidationErrorResponse,
     ProposalErrorResponse, ProposalSearchFilters, ProposalSearchResponse,
     MediaFileResponse
 )
-from ..services.proposal_service import ProposalService
-from ..services.notification_service import NotificationService
+from services.proposal_service import ProposalService
+from services.notification_service import NotificationService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/proposals", tags=["proposals"])

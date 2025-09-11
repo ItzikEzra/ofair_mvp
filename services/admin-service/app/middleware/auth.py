@@ -136,14 +136,14 @@ async def verify_admin_token(
     
     return admin_user
 
-async def require_permissions(required_permissions: List[str]):
+def require_permissions(required_permissions: List[str]):
     """
     דרישת הרשאות ספציפיות - Require specific permissions
     """
-    def permission_checker(admin_user: dict = Depends(verify_admin_token)):
+    async def permission_checker(admin_user: dict = Depends(verify_admin_token)):
         auth_middleware = AdminAuthMiddleware()
         
-        if not asyncio.run(auth_middleware.check_permissions(admin_user, required_permissions)):
+        if not await auth_middleware.check_permissions(admin_user, required_permissions):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="אין הרשאה מספקת - Insufficient permissions"
@@ -153,7 +153,7 @@ async def require_permissions(required_permissions: List[str]):
     
     return permission_checker
 
-async def require_role(required_role: str):
+def require_role(required_role: str):
     """
     דרישת תפקיד ספציפי - Require specific role
     """

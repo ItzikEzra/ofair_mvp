@@ -20,10 +20,10 @@ class CommissionService:
         job_id: str,
         job_value: Decimal,
         commission_type: CommissionType,
+        recorded_by: str,
         commission_rate: Optional[Decimal] = None,
         referrer_id: Optional[str] = None,
-        referrer_share_rate: Optional[Decimal] = None,
-        recorded_by: str
+        referrer_share_rate: Optional[Decimal] = None
     ) -> CommissionResponse:
         """
         רישום עמלה חדשה - Record new commission owed

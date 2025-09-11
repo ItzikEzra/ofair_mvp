@@ -27,7 +27,7 @@ from python_shared.database.models import (
     WalletTransaction
 )
 
-from models.professionals import ProfessionalStats
+from ..models.professionals import ProfessionalStats
 
 logger = logging.getLogger(__name__)
 

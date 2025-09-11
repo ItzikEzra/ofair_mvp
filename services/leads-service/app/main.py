@@ -33,6 +33,9 @@ sys.path.append("/app/libs")
 from python_shared.config.settings import get_settings
 
 # Import local modules
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from deps import get_limiter, close_redis_client, check_database_health, check_redis_health
 from api import leads, lead_board
 

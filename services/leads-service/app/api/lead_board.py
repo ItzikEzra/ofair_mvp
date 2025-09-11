@@ -7,13 +7,13 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
 import sys
-sys.path.append("/root/repos/ofair_mvp/libs")
+sys.path.append("/app/libs")
 from python_shared.database.connection import get_db
 
-from ..deps import get_current_professional, get_redis_client
-from ..models.leads import LeadBoardResponse, LeadErrorResponse
-from ..services.board_service import LeadBoardService
-from ..services.geo_service import IsraeliGeoService
+from deps import get_current_professional, get_redis_client
+from models.leads import LeadBoardResponse, LeadErrorResponse
+from services.board_service import LeadBoardService
+from services.geo_service import IsraeliGeoService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/leads/board", tags=["lead-board"])

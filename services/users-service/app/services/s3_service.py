@@ -4,7 +4,7 @@ import sys
 import uuid
 import logging
 from datetime import datetime, timedelta
-from typing import Tuple, Optional, Dict, Any
+from typing import Tuple, Optional, Dict, Any, List
 import mimetypes
 import hashlib
 

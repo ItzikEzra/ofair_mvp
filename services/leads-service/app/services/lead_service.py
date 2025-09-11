@@ -9,19 +9,19 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, or_, desc, asc, func
 
 import sys
-sys.path.append("/root/repos/ofair_mvp/libs")
+sys.path.append("/app/libs")
 from python_shared.database.models import (
     User, Professional, Lead, ConsumerLead, ProfessionalLead,
     LeadType, LeadStatus, ProfessionalStatus, Proposal, ProposalStatus,
     Referral, ReferralStatus, Notification, NotificationType
 )
 
-from ..models.leads import (
+from models.leads import (
     LeadCreateRequest, LeadUpdateRequest, LeadDetailResponse,
     LeadListItem, LeadShareRequest, ReferralResponse,
     HebrewCategories
 )
-from .geo_service import IsraeliGeoService, LocationInfo
+from services.geo_service import IsraeliGeoService, LocationInfo
 
 logger = logging.getLogger(__name__)
 

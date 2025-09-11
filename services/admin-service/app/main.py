@@ -1,20 +1,26 @@
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
+import sys
+import os
 import uvicorn
 import logging
 from datetime import datetime
 from typing import Optional
 
-from .config import settings
-from .database import get_database, AdminDatabase
-from .routes.analytics import router as analytics_router
-from .routes.users import router as users_router
-from .routes.leads import router as leads_router
-from .routes.system import router as system_router
-from .routes.reports import router as reports_router
-from .middleware.auth import verify_admin_token
-from .services.audit_service import AuditService
+# Add path resolution for Docker container
+sys.path.append("/app/libs")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from config import settings
+from database import get_database, AdminDatabase
+from routes.analytics import router as analytics_router
+from routes.users import router as users_router
+from routes.leads import router as leads_router
+from routes.system import router as system_router
+from routes.reports import router as reports_router
+from middleware.auth import verify_admin_token
+from services.audit_service import AuditService
 
 # Configure logging
 logging.basicConfig(

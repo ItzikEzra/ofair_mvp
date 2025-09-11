@@ -1,6 +1,6 @@
 from decimal import Decimal, ROUND_HALF_UP
 from typing import List, Dict, Any
-from ..models.referrals import CommissionBreakdown
+from models.referrals import CommissionBreakdown
 
 class CommissionCalculator:
     """

@@ -4,12 +4,12 @@ from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 import uuid
 
-from ..models.referrals import (
+from models.referrals import (
     CommissionCalculationResponse, CommissionBreakdown, PaymentResponse,
     CommissionStatus, PaymentMethod, CommissionDB
 )
-from ..database import get_database
-from ..utils.commission_calculator import CommissionCalculator
+from database import get_database
+from utils.commission_calculator import CommissionCalculator
 
 class CommissionService:
     def __init__(self):

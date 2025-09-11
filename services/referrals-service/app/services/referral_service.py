@@ -4,12 +4,12 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 import uuid
 
-from ..models.referrals import (
+from models.referrals import (
     ReferralResponse, ReferralStatus, ReferralChainResponse, 
     ReferralChainNode, ReferralStatsResponse, ReferralDB
 )
-from ..database import get_database
-from ..utils.hebrew_utils import validate_hebrew_content
+from database import get_database
+from utils.hebrew_utils import validate_hebrew_content
 
 class ReferralService:
     def __init__(self):

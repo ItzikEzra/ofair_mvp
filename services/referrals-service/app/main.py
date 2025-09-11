@@ -1,3 +1,10 @@
+import sys
+import os
+
+# Add path resolution for Docker container
+sys.path.append("/app/libs")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from fastapi.security import HTTPBearer
 from typing import List, Optional
@@ -5,7 +12,7 @@ from datetime import datetime, timedelta
 import asyncio
 from decimal import Decimal
 
-from .models.referrals import (
+from models.referrals import (
     CreateReferralRequest,
     ReferralResponse,
     CommissionCalculationRequest,
@@ -17,10 +24,10 @@ from .models.referrals import (
     ReferralStatus,
     CommissionStatus
 )
-from .services.referral_service import ReferralService
-from .services.commission_service import CommissionService
-from .middleware.auth import verify_jwt_token
-from .config import settings
+from services.referral_service import ReferralService
+from services.commission_service import CommissionService
+from middleware.auth import verify_jwt_token
+from config import settings
 
 app = FastAPI(
     title="OFAIR Referrals Service",

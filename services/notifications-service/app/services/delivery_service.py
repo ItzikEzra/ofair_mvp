@@ -6,11 +6,11 @@ from datetime import datetime, timedelta
 import uuid
 import logging
 
-from ..models.notifications import (
+from models.notifications import (
     NotificationChannel, NotificationStatus, DeliveryResult
 )
-from ..database import get_database
-from ..config import settings
+from database import get_database
+from config import settings
 
 logger = logging.getLogger(__name__)
 

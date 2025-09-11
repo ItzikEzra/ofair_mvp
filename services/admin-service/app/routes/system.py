@@ -2,11 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
-from ..middleware.auth import verify_admin_token, require_super_admin, require_permissions
-from ..models.admin import SystemConfigUpdateRequest, SystemAlert, FeatureFlag
-from ..services.audit_service import AuditService
-from ..services.metrics_service import MetricsService
-from ..config import settings
+from middleware.auth import verify_admin_token, require_super_admin, require_permissions
+from models.admin import SystemConfigUpdateRequest, SystemAlert, FeatureFlag
+from services.audit_service import AuditService
+from services.metrics_service import MetricsService
+from config import settings
 
 router = APIRouter()
 
@@ -21,7 +21,7 @@ async def get_system_status(
     system_metrics = await metrics_service.get_system_metrics()
     
     # Get alerts count
-    from ..database import get_database
+    from database import get_database
     db = get_database()
     
     critical_alerts = await db.get_alerts_by_severity("critical")
@@ -89,7 +89,7 @@ async def get_system_alerts(
     """
     קבלת התראות מערכת - Get system alerts
     """
-    from ..database import get_database
+    from database import get_database
     db = get_database()
     
     if severity:

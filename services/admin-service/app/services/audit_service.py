@@ -3,8 +3,8 @@ from datetime import datetime, timedelta
 import asyncio
 from enum import Enum
 
-from ..database import get_database
-from ..models.admin import AuditEventType, AuditSeverity
+from database import get_database
+from models.admin import AuditEventType, AuditSeverity
 
 class AuditService:
     def __init__(self):

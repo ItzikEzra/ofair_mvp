@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from typing import Optional, List
 from datetime import datetime
 
-from ..middleware.auth import verify_admin_token, require_permissions
-from ..models.admin import BulkUserActionRequest, UserSummary
-from ..services.audit_service import AuditService
+from middleware.auth import verify_admin_token, require_permissions
+from models.admin import BulkUserActionRequest, UserSummary
+from services.audit_service import AuditService
 
 router = APIRouter()
 

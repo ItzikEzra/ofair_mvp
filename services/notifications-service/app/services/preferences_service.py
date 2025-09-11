@@ -2,10 +2,10 @@ from typing import Optional, Dict, Any
 from datetime import datetime
 import json
 
-from ..models.notifications import (
+from models.notifications import (
     UserPreferences, UserPreferencesResponse, NotificationChannel
 )
-from ..database import get_database
+from database import get_database
 
 class PreferencesService:
     def __init__(self):

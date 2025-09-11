@@ -4,8 +4,8 @@ import asyncio
 import aiohttp
 import logging
 
-from ..database import get_database
-from ..config import settings
+from database import get_database
+from config import settings
 
 logger = logging.getLogger(__name__)
 

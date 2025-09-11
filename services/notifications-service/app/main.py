@@ -1,10 +1,16 @@
+import sys
+import os
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from fastapi.security import HTTPBearer
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 import asyncio
 
-from .models.notifications import (
+# Add path resolution for Docker container
+sys.path.append("/app/libs")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from models.notifications import (
     SendNotificationRequest,
     NotificationResponse,
     NotificationStatus,
@@ -15,12 +21,12 @@ from .models.notifications import (
     NotificationHistory,
     BulkNotificationRequest
 )
-from .services.notification_service import NotificationService
-from .services.template_service import TemplateService
-from .services.delivery_service import DeliveryService
-from .services.preferences_service import PreferencesService
-from .middleware.auth import verify_jwt_token
-from .config import settings
+from services.notification_service import NotificationService
+from services.template_service import TemplateService
+from services.delivery_service import DeliveryService
+from services.preferences_service import PreferencesService
+from middleware.auth import verify_jwt_token
+from config import settings
 
 app = FastAPI(
     title="OFAIR Notifications Service",

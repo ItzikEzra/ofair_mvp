@@ -4,7 +4,7 @@ from typing import Optional, List, Dict, Any, Union
 from datetime import datetime, timedelta
 import logging
 
-from .config import settings
+from config import settings
 
 logger = logging.getLogger(__name__)
 

@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional
 from datetime import datetime
 
-from ..middleware.auth import verify_admin_token, require_permissions
-from ..services.audit_service import AuditService
+from middleware.auth import verify_admin_token, require_permissions
+from services.audit_service import AuditService
 
 router = APIRouter()
 

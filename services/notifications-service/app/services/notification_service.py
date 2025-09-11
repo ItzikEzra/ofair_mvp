@@ -3,19 +3,29 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 import uuid
 
-from ..models.notifications import (
+from models.notifications import (
     NotificationResponse, NotificationStatus, NotificationChannel,
     NotificationPriority, NotificationHistory, NotificationDB
 )
-from ..database import get_database
-from .preferences_service import PreferencesService
-from .template_service import TemplateService
+from database import get_database
 
 class NotificationService:
     def __init__(self):
         self.db = get_database()
-        self.preferences_service = PreferencesService()
-        self.template_service = TemplateService()
+        self.preferences_service = None
+        self.template_service = None
+    
+    def _get_preferences_service(self):
+        if self.preferences_service is None:
+            from services.preferences_service import PreferencesService
+            self.preferences_service = PreferencesService()
+        return self.preferences_service
+    
+    def _get_template_service(self):
+        if self.template_service is None:
+            from services.template_service import TemplateService
+            self.template_service = TemplateService()
+        return self.template_service
     
     async def send_notification(
         self,

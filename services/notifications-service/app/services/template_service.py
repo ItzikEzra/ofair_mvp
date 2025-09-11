@@ -2,10 +2,10 @@ import uuid
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
-from ..models.notifications import (
+from models.notifications import (
     NotificationTemplate, NotificationChannel, NotificationCategory
 )
-from ..database import get_database
+from database import get_database
 
 class TemplateService:
     def __init__(self):

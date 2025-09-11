@@ -6,8 +6,8 @@ import asyncio
 from datetime import datetime, timedelta
 import logging
 
-from ..config import settings, check_permission
-from ..database import get_database
+from config import settings, check_permission
+from database import get_database
 
 logger = logging.getLogger(__name__)
 security = HTTPBearer()

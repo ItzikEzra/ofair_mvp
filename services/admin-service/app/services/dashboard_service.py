@@ -2,8 +2,8 @@ from typing import Dict, Any, List
 from datetime import datetime, timedelta
 import asyncio
 
-from ..database import get_database
-from ..models.admin import DashboardStats, SystemStatus, SystemHealth
+from database import get_database
+from models.admin import DashboardStats, SystemStatus, SystemHealth
 
 class DashboardService:
     def __init__(self):

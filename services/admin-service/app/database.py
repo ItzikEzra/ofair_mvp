@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import uuid
 import logging
 
-from .config import settings
+from config import settings
 
 logger = logging.getLogger(__name__)
 

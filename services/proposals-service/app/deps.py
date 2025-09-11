@@ -11,6 +11,7 @@ from jose import JWTError, jwt
 from fastapi import HTTPException, status, Depends, Request, UploadFile
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
@@ -562,10 +563,15 @@ def can_upload_media_to_proposal(proposal: Proposal) -> bool:
 async def check_database_health() -> bool:
     """Check database connectivity."""
     try:
-        db = next(get_db())
-        db.execute("SELECT 1")
-        return True
-    except Exception:
+        db_gen = get_db()
+        db = next(db_gen)
+        try:
+            db.execute(text("SELECT 1"))
+            return True
+        finally:
+            db.close()
+    except Exception as e:
+        logger.error(f"Database health check failed: {e}")
         return False
 
 

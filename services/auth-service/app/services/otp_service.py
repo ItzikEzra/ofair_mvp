@@ -191,9 +191,9 @@ class OTPService:
 
             # Message templates
             messages = {
-                'he': f"קוד האימות שלך באופייר: {otp}\n\nהקוד תקף ל-{self.otp_expiry_minutes} דקות.",
-                'en': f"Your OFAIR verification code: {otp}\n\nThis code expires in {self.otp_expiry_minutes} minutes.",
-                'ar': f"رمز التحقق الخاص بك في أوفير: {otp}\n\nهذا الرمز صالح لمدة {self.otp_expiry_minutes} دقائق."
+                'he': f"הקוד שלך לכניסה ל-אפליקציית עופר הוא: {otp}",
+                'en': f"Your OFAIR app login code is: {otp}",
+                'ar': f"رمز دخولك لتطبيق أوفير هو: {otp}"
             }
 
             message = messages.get(language, messages['he'])
@@ -266,9 +266,9 @@ class OTPService:
             
             # Message templates
             messages = {
-                'he': f"קוד האימות שלך באופייר: {otp}\n\nהקוד תקף ל-{self.otp_expiry_minutes} דקות.",
-                'en': f"Your OFAIR verification code: {otp}\n\nThis code expires in {self.otp_expiry_minutes} minutes.",
-                'ar': f"رمز التحقق الخاص بك في أوفير: {otp}\n\nهذا الرمز صالح لمدة {self.otp_expiry_minutes} دقائق."
+                'he': f"הקוד שלך לכניסה ל-אפליקציית עופר הוא: {otp}",
+                'en': f"Your OFAIR app login code is: {otp}",
+                'ar': f"رمز دخولك لتطبيق أوفير هو: {otp}"
             }
             
             message = messages.get(language, messages['he'])

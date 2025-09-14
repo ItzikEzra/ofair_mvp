@@ -13,8 +13,6 @@ from email.mime.multipart import MIMEMultipart
 
 import redis.asyncio as redis
 import httpx
-from twilio.rest import Client as TwilioClient
-from twilio.base.exceptions import TwilioException
 
 # Import shared libraries
 from python_shared.config.settings import get_settings, Settings
@@ -155,23 +153,13 @@ class OTPService:
             return False, "OTP verification failed", "אימות הקוד נכשל", None
     
     async def _send_sms_otp(self, phone: str, otp: str, language: str) -> bool:
-        """Send OTP via SMS."""
+        """Send OTP via SMS using 019 SMS service."""
         try:
-            # Try different SMS providers in order of preference
-
-            # 1. Try 019 SMS (Primary)
+            # Try 019 SMS (Primary and only SMS provider)
             if await self._send_019_sms(phone, otp, language):
                 return True
 
-            # 2. Try GreenAPI (WhatsApp Business API)
-            if await self._send_whatsapp_otp(phone, otp, language):
-                return True
-
-            # 3. Try Twilio (Fallback)
-            if await self._send_twilio_sms(phone, otp, language):
-                return True
-
-            # 4. Fallback - log the OTP (development only)
+            # Fallback - log the OTP (development only)
             if self.settings.environment == "development":
                 logger.info(f"SMS OTP for {phone}: {otp}")
                 return True
@@ -183,21 +171,23 @@ class OTPService:
             return False
 
     async def _send_019_sms(self, phone: str, otp: str, language: str) -> bool:
-        """Send OTP via 019 SMS service."""
-        if not self.settings.sms019_api_token:
-            logger.debug("019 SMS API token not configured")
+        """Send OTP via 019 SMS service using correct API format."""
+        if not all([self.settings.sms019_username, self.settings.sms019_password, self.settings.sms019_sender_number]):
+            logger.debug("019 SMS credentials not configured")
             return False
 
         try:
-            # Format phone number (ensure it starts with +972 for Israel)
-            if phone.startswith('+'):
-                formatted_phone = phone[1:]  # Remove the +
+            # Format phone number for Israeli numbers (05xxxxxxx or 5xxxxxxx)
+            if phone.startswith('+972'):
+                formatted_phone = '0' + phone[4:]  # +972545306380 → 0545306380
             elif phone.startswith('972'):
-                formatted_phone = phone
+                formatted_phone = '0' + phone[3:]  # 972545306380 → 0545306380
             elif phone.startswith('0'):
-                formatted_phone = '972' + phone[1:]  # Replace leading 0 with 972
+                formatted_phone = phone  # 0545306380 → 0545306380
+            elif phone.startswith('5'):
+                formatted_phone = '0' + phone  # 545306380 → 0545306380
             else:
-                formatted_phone = '972' + phone
+                formatted_phone = phone
 
             # Message templates
             messages = {
@@ -211,54 +201,52 @@ class OTPService:
             # 019 SMS API endpoint
             url = "https://019sms.co.il/api"
 
-            # Prepare request payload (JSON format)
-            payload = {
-                "token": self.settings.sms019_api_token,
-                "from": self.settings.sms019_from_name or "OFAIR",
-                "to": formatted_phone,
-                "message": message,
-                "type": "sms"
-            }
-
-            # Alternative XML format (if JSON doesn't work)
+            # Prepare XML payload according to 019 SMS API specification
             xml_payload = f"""<?xml version="1.0" encoding="UTF-8"?>
-            <sms>
-                <token>{self.settings.sms019_api_token}</token>
-                <from>{self.settings.sms019_from_name or "OFAIR"}</from>
-                <to>{formatted_phone}</to>
-                <message>{message}</message>
-                <type>sms</type>
-            </sms>"""
+<sms>
+    <user>
+        <username>{self.settings.sms019_username}</username>
+        <password>{self.settings.sms019_password}</password>
+    </user>
+    <source>{self.settings.sms019_sender_number}</source>
+    <destinations>
+        <phone>{formatted_phone}</phone>
+    </destinations>
+    <message>{message}</message>
+</sms>"""
+
+            logger.info(f"019 SMS Request - URL: {url}")
+            logger.info(f"019 SMS Request - Phone: {phone} → {formatted_phone}")
+            logger.info(f"019 SMS Request - Username: {self.settings.sms019_username}")
+            logger.info(f"019 SMS Request - Source: {self.settings.sms019_sender_number}")
 
             async with httpx.AsyncClient(timeout=30.0) as client:
-                # Try JSON first
-                headers = {"Content-Type": "application/json"}
-                response = await client.post(url, json=payload, headers=headers)
+                # Send XML request with authentication
+                headers = {"Content-Type": "application/xml; charset=UTF-8"}
+                response = await client.post(url, data=xml_payload, headers=headers)
 
-                # If JSON fails, try XML
-                if response.status_code != 200:
-                    headers = {"Content-Type": "application/xml"}
-                    response = await client.post(url, data=xml_payload, headers=headers)
+                logger.info(f"019 SMS API Response - Status: {response.status_code}")
+                logger.info(f"019 SMS API Response Body: {response.text}")
 
                 if response.status_code == 200:
                     try:
-                        # Try to parse JSON response
-                        result = response.json()
-                        if result.get('status') == 'success' or result.get('error') is None:
+                        # Parse XML response
+                        response_text = response.text.lower()
+
+                        # Check for success indicators in XML response
+                        if '<status>0</status>' in response_text or 'sms will be sent' in response_text:
                             logger.info(f"019 SMS sent successfully to {phone}")
                             return True
-                        else:
-                            logger.error(f"019 SMS API error: {result}")
-                            return False
-                    except:
-                        # Try to parse XML response
-                        response_text = response.text
-                        if 'success' in response_text.lower() or 'sent' in response_text.lower():
-                            logger.info(f"019 SMS sent successfully to {phone}")
+                        elif '<status>1</status>' in response_text:
+                            logger.info(f"019 SMS sent successfully to {phone} (status 1)")
                             return True
                         else:
-                            logger.error(f"019 SMS API error: {response_text}")
+                            logger.error(f"019 SMS API error: {response.text}")
                             return False
+
+                    except Exception as e:
+                        logger.error(f"Failed to parse 019 SMS response: {e}")
+                        return False
                 else:
                     logger.error(f"019 SMS API request failed: {response.status_code} - {response.text}")
                     return False
@@ -311,54 +299,6 @@ class OTPService:
             logger.error(f"WhatsApp OTP sending failed: {e}")
             return False
     
-    async def _send_twilio_sms(self, phone: str, otp: str, language: str) -> bool:
-        """Send OTP via Twilio SMS."""
-        if not all([
-            self.settings.twilio_account_sid,
-            self.settings.twilio_auth_token,
-            self.settings.twilio_from_number
-        ]):
-            return False
-        
-        try:
-            # Message templates
-            messages = {
-                'he': f"קוד האימות שלך באופייר: {otp}",
-                'en': f"Your OFAIR verification code: {otp}",
-                'ar': f"رمز التحقق الخاص بك في أوفير: {otp}"
-            }
-            
-            message = messages.get(language, messages['he'])
-            
-            # Run Twilio client in thread pool to avoid blocking
-            def send_sms():
-                client = TwilioClient(
-                    self.settings.twilio_account_sid,
-                    self.settings.twilio_auth_token
-                )
-                
-                return client.messages.create(
-                    body=message,
-                    from_=self.settings.twilio_from_number,
-                    to=phone
-                )
-            
-            loop = asyncio.get_event_loop()
-            message_result = await loop.run_in_executor(None, send_sms)
-            
-            if message_result.sid:
-                logger.info(f"Twilio SMS OTP sent successfully to {phone}")
-                return True
-            else:
-                logger.error("Twilio SMS sending failed - no SID returned")
-                return False
-                
-        except TwilioException as e:
-            logger.error(f"Twilio SMS error: {e}")
-            return False
-        except Exception as e:
-            logger.error(f"SMS OTP sending failed: {e}")
-            return False
     
     async def _send_email_otp(self, email: str, otp: str, language: str) -> bool:
         """Send OTP via email."""

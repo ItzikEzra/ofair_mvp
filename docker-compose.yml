@@ -45,14 +45,9 @@ services:
       S3_BUCKET: "ofair-uploads"
       S3_ENDPOINT: "http://minio:9000"
       # 019 SMS Configuration
-      SMS019_API_TOKEN: "your_019_sms_api_token"
-      SMS019_USERNAME: "your_019_sms_username"
-      SMS019_PASSWORD: "your_019_sms_password"
-      SMS019_FROM_NAME: "OFAIR"
-      # Twilio (Fallback)
-      TWILIO_ACCOUNT_SID: "your_twilio_account_sid"
-      TWILIO_AUTH_TOKEN: "your_twilio_auth_token"
-      TWILIO_FROM_NUMBER: "+1234567890"
+      SMS019_USERNAME: "infoofair"
+      SMS019_PASSWORD: "Ofair@770"
+      SMS019_SENDER_NUMBER: "0505577565"
     ports:
       - "8001:8000"
     depends_on:

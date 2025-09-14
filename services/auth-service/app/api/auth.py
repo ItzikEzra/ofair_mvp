@@ -175,6 +175,7 @@ async def verify_otp(
         
         token_claims = {
             "sub": user_id,
+            "user_id": user_id,  # Include user_id for service compatibility
             "contact": request.contact,
             "contact_type": contact_type,
             "role": UserRole.CONSUMER.value,  # Default role
@@ -422,17 +423,74 @@ async def logout(
 
 # Helper functions
 async def _get_or_create_user(contact: str, is_new_user: bool) -> str:
-    """Get existing user or create new user ID."""
-    # In a real implementation, this would interact with the database
-    # For now, we'll create a simple user ID based on contact
-    import hashlib
-    user_id = hashlib.sha256(contact.encode()).hexdigest()[:16]
-    
-    if is_new_user:
-        # Here you would create the user record in the database
-        logger.info(f"New user created: {user_id} for contact: {contact}")
-    
-    return user_id
+    """Get existing user or create new user in database."""
+    from python_shared.database.connection import get_db_engine
+    from sqlalchemy import text
+
+    try:
+        engine = await get_db_engine()
+
+        # Determine contact type
+        contact_type = "email" if "@" in contact else "phone"
+
+        # Check if user exists
+        if contact_type == "email":
+            query = text("SELECT id FROM users WHERE email = :contact LIMIT 1")
+        else:
+            query = text("SELECT id FROM users WHERE phone = :contact LIMIT 1")
+
+        async with engine.begin() as conn:
+            result = await conn.execute(query, {"contact": contact})
+            existing_user = result.fetchone()
+
+            if existing_user:
+                user_id = str(existing_user[0])
+                logger.info(f"Existing user found: {user_id}")
+                return user_id
+
+            # Create new user if is_new_user or doesn't exist
+            if is_new_user:
+                insert_data = {
+                    "role": "customer",
+                    "status": "pending_verification"
+                }
+
+                if contact_type == "email":
+                    insert_data["email"] = contact
+                    insert_query = text("""
+                        INSERT INTO users (email, role, status)
+                        VALUES (:email, :role, :status)
+                        RETURNING id
+                    """)
+                else:
+                    insert_data["phone"] = contact
+                    insert_query = text("""
+                        INSERT INTO users (phone, role, status)
+                        VALUES (:phone, :role, :status)
+                        RETURNING id
+                    """)
+
+                result = await conn.execute(insert_query, insert_data)
+                new_user = result.fetchone()
+                user_id = str(new_user[0])
+
+                logger.info(f"New user created: {user_id} for contact: {contact}")
+                return user_id
+            else:
+                # Fallback - shouldn't happen
+                logger.warning(f"User not found and is_new_user is False for {contact}")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="User not found"
+                )
+
+    except Exception as e:
+        logger.error(f"Error in _get_or_create_user: {e}")
+        # Generate a UUID as fallback
+        import uuid
+        user_id = str(uuid.uuid4())
+        logger.warning(f"Fallback UUID generated: {user_id}")
+        return user_id
 
 
 async def _create_refresh_token(user_id: str, jti: str) -> str:

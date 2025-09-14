@@ -135,8 +135,9 @@ class OTPService:
                     return (
                         False,
                         f"Invalid OTP. {remaining_attempts} attempts remaining",
-                        f"קוד אימות שגוי. נותרו {remaining_attempts} ניסיונות"
-                    ), None
+                        f"קוד אימות שגוי. נותרו {remaining_attempts} ניסיונות",
+                        None
+                    )
                 else:
                     await redis_client.delete(key)
                     return False, "Maximum attempts exceeded", "חריגה ממספר הניסיונות המותר", None

@@ -65,15 +65,19 @@ async def close_redis_client():
 def create_access_token(data: Dict[str, Any], expires_delta: Optional[int] = None) -> str:
     """Create JWT access token."""
     settings = get_settings()
-    
+
     to_encode = data.copy()
-    
-    if expires_delta:
-        expire = expires_delta
-    else:
-        expire = settings.jwt_expire_minutes * 60  # Convert to seconds
-    
-    to_encode.update({"exp": expire})
+
+    # Only set exp if not already present in data
+    if "exp" not in to_encode:
+        if expires_delta:
+            expire = expires_delta
+        else:
+            from datetime import datetime, timedelta
+            expire = datetime.utcnow() + timedelta(minutes=settings.jwt_expire_minutes)
+            expire = int(expire.timestamp())
+
+        to_encode.update({"exp": expire})
     
     encoded_jwt = jwt.encode(
         to_encode,

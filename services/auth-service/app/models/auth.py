@@ -111,8 +111,44 @@ class VerifyOTPRequest(BaseModel):
     
     @validator('contact')
     def validate_contact(cls, v):
-        """Use the same validation as SendOTPRequest."""
-        return SendOTPRequest.__validators__['validate_contact'](cls, v)
+        """Validate contact - reuse logic from SendOTPRequest."""
+        v = v.strip()
+
+        # Check if it's an email
+        if '@' in v:
+            email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            if not re.match(email_regex, v):
+                raise ValueError('Invalid email format')
+            return v
+
+        # Check if it's a phone number
+        # Israeli phone number patterns
+        israeli_patterns = [
+            r'^(\+972|972)?[-\s]?0?([23489]\d{8}|5[0-9]\d{7}|7[2-9]\d{7})$',  # Israeli mobile/landline
+            r'^(\+972|0)?[-\s]?([23489]\d{7,8}|5[0-9]\d{6,7}|7[2-9]\d{6,7})$'  # Alternative format
+        ]
+
+        # Clean phone number
+        phone_cleaned = re.sub(r'[-\s\(\)]', '', v)
+
+        for pattern in israeli_patterns:
+            if re.match(pattern, phone_cleaned):
+                # Normalize to +972 format
+                if phone_cleaned.startswith('+972'):
+                    return phone_cleaned
+                elif phone_cleaned.startswith('972'):
+                    return '+' + phone_cleaned
+                elif phone_cleaned.startswith('0'):
+                    return '+972' + phone_cleaned[1:]
+                else:
+                    return '+972' + phone_cleaned
+
+        # International phone validation
+        if phone_cleaned.startswith('+'):
+            if len(phone_cleaned) >= 10 and phone_cleaned[1:].isdigit():
+                return phone_cleaned
+
+        raise ValueError('Invalid phone number format')
     
     @validator('otp')
     def validate_otp(cls, v):

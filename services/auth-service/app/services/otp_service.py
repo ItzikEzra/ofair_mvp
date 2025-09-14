@@ -191,9 +191,9 @@ class OTPService:
 
             # Message templates
             messages = {
-                'he': f"הקוד שלך לכניסה ל-אפליקציית עופר הוא: {otp}",
-                'en': f"Your OFAIR app login code is: {otp}",
-                'ar': f"رمز دخولك لتطبيق أوفير هو: {otp}"
+                'he': f"הקוד שלך לכניסה ל-אפליקציית עופר הוא: {otp}\n\n@OFAIR#",
+                'en': f"Your OFAIR app login code is: {otp}\n\n@OFAIR#",
+                'ar': f"رمز دخولك لتطبيق أوفير هو: {otp}\n\n@OFAIR#"
             }
 
             message = messages.get(language, messages['he'])
@@ -266,9 +266,9 @@ class OTPService:
             
             # Message templates
             messages = {
-                'he': f"הקוד שלך לכניסה ל-אפליקציית עופר הוא: {otp}",
-                'en': f"Your OFAIR app login code is: {otp}",
-                'ar': f"رمز دخولك لتطبيق أوفير هو: {otp}"
+                'he': f"הקוד שלך לכניסה ל-אפליקציית עופר הוא: {otp}\n\n@OFAIR#",
+                'en': f"Your OFAIR app login code is: {otp}\n\n@OFAIR#",
+                'ar': f"رمز دخولك لتطبيق أوفير هو: {otp}\n\n@OFAIR#"
             }
             
             message = messages.get(language, messages['he'])

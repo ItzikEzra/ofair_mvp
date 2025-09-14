@@ -158,26 +158,115 @@ class OTPService:
         """Send OTP via SMS."""
         try:
             # Try different SMS providers in order of preference
-            
-            # 1. Try GreenAPI (WhatsApp Business API)
+
+            # 1. Try 019 SMS (Primary)
+            if await self._send_019_sms(phone, otp, language):
+                return True
+
+            # 2. Try GreenAPI (WhatsApp Business API)
             if await self._send_whatsapp_otp(phone, otp, language):
                 return True
-            
-            # 2. Try Twilio
+
+            # 3. Try Twilio (Fallback)
             if await self._send_twilio_sms(phone, otp, language):
                 return True
-            
-            # 3. Fallback - log the OTP (development only)
+
+            # 4. Fallback - log the OTP (development only)
             if self.settings.environment == "development":
                 logger.info(f"SMS OTP for {phone}: {otp}")
                 return True
-            
+
             return False
-            
+
         except Exception as e:
             logger.error(f"Error sending SMS OTP: {e}")
             return False
-    
+
+    async def _send_019_sms(self, phone: str, otp: str, language: str) -> bool:
+        """Send OTP via 019 SMS service."""
+        if not self.settings.sms019_api_token:
+            logger.debug("019 SMS API token not configured")
+            return False
+
+        try:
+            # Format phone number (ensure it starts with +972 for Israel)
+            if phone.startswith('+'):
+                formatted_phone = phone[1:]  # Remove the +
+            elif phone.startswith('972'):
+                formatted_phone = phone
+            elif phone.startswith('0'):
+                formatted_phone = '972' + phone[1:]  # Replace leading 0 with 972
+            else:
+                formatted_phone = '972' + phone
+
+            # Message templates
+            messages = {
+                'he': f"קוד האימות שלך באופייר: {otp}\n\nהקוד תקף ל-{self.otp_expiry_minutes} דקות.",
+                'en': f"Your OFAIR verification code: {otp}\n\nThis code expires in {self.otp_expiry_minutes} minutes.",
+                'ar': f"رمز التحقق الخاص بك في أوفير: {otp}\n\nهذا الرمز صالح لمدة {self.otp_expiry_minutes} دقائق."
+            }
+
+            message = messages.get(language, messages['he'])
+
+            # 019 SMS API endpoint
+            url = "https://019sms.co.il/api"
+
+            # Prepare request payload (JSON format)
+            payload = {
+                "token": self.settings.sms019_api_token,
+                "from": self.settings.sms019_from_name or "OFAIR",
+                "to": formatted_phone,
+                "message": message,
+                "type": "sms"
+            }
+
+            # Alternative XML format (if JSON doesn't work)
+            xml_payload = f"""<?xml version="1.0" encoding="UTF-8"?>
+            <sms>
+                <token>{self.settings.sms019_api_token}</token>
+                <from>{self.settings.sms019_from_name or "OFAIR"}</from>
+                <to>{formatted_phone}</to>
+                <message>{message}</message>
+                <type>sms</type>
+            </sms>"""
+
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                # Try JSON first
+                headers = {"Content-Type": "application/json"}
+                response = await client.post(url, json=payload, headers=headers)
+
+                # If JSON fails, try XML
+                if response.status_code != 200:
+                    headers = {"Content-Type": "application/xml"}
+                    response = await client.post(url, data=xml_payload, headers=headers)
+
+                if response.status_code == 200:
+                    try:
+                        # Try to parse JSON response
+                        result = response.json()
+                        if result.get('status') == 'success' or result.get('error') is None:
+                            logger.info(f"019 SMS sent successfully to {phone}")
+                            return True
+                        else:
+                            logger.error(f"019 SMS API error: {result}")
+                            return False
+                    except:
+                        # Try to parse XML response
+                        response_text = response.text
+                        if 'success' in response_text.lower() or 'sent' in response_text.lower():
+                            logger.info(f"019 SMS sent successfully to {phone}")
+                            return True
+                        else:
+                            logger.error(f"019 SMS API error: {response_text}")
+                            return False
+                else:
+                    logger.error(f"019 SMS API request failed: {response.status_code} - {response.text}")
+                    return False
+
+        except Exception as e:
+            logger.error(f"019 SMS sending failed: {e}")
+            return False
+
     async def _send_whatsapp_otp(self, phone: str, otp: str, language: str) -> bool:
         """Send OTP via WhatsApp using GreenAPI."""
         if not self.settings.greenapi_id_instance or not self.settings.greenapi_api_token:

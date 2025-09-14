@@ -38,6 +38,13 @@ class Settings(BaseSettings):
     stripe_webhook_secret: Optional[str] = Field(default=None, alias="STRIPE_WEBHOOK_SECRET")
     
     # Communication
+    # 019 SMS
+    sms019_api_token: Optional[str] = Field(default=None, alias="SMS019_API_TOKEN")
+    sms019_username: Optional[str] = Field(default=None, alias="SMS019_USERNAME")
+    sms019_password: Optional[str] = Field(default=None, alias="SMS019_PASSWORD")
+    sms019_from_name: Optional[str] = Field(default="OFAIR", alias="SMS019_FROM_NAME")
+
+    # Twilio (fallback)
     twilio_account_sid: Optional[str] = Field(default=None, alias="TWILIO_ACCOUNT_SID")
     twilio_auth_token: Optional[str] = Field(default=None, alias="TWILIO_AUTH_TOKEN")
     twilio_from_number: Optional[str] = Field(default=None, alias="TWILIO_FROM_NUMBER")

@@ -1,7 +1,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth/AuthContext";
 import { debugLog } from "@/utils/debugLogger";
 
 export const useProfessionalId = () => {

@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useOTPAuth } from "@/hooks/useOTPAuth";
 import { IdentifierInput } from "./IdentifierInput";
 import { OTPInputForm } from "./OTPInput";
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/auth/AuthContext';
 import { saveProfessionalData, clearProfessionalDataOnly, saveAuthToken, getAuthToken } from "@/utils/storageUtils";
 import { useNavigate } from 'react-router-dom';
 

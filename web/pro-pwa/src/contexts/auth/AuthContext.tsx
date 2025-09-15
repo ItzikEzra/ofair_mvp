@@ -1,31 +1,62 @@
 
-import React, { createContext, useContext, useCallback } from "react";
+import React, { createContext, useContext, useCallback, useState, useEffect } from "react";
 import { useAuthState } from "./useAuthState";
 import { useLogout } from "./useLogout";
 import { getProfessionalData } from "@/utils/storageUtils";
-import { AuthState } from "./types";
+import { AuthState, UserProfile } from "./types";
+import { AuthService } from "@/services/authService";
 
 const AuthContext = createContext<AuthState>({
   isLoggedIn: null,
   isLoading: true,
   professionalData: null,
+  userProfile: null,
+  userRole: null,
   logout: async () => {},
   refreshProfessionalData: async () => false,
+  refreshUserProfile: async () => false,
   setIsLoggedIn: () => {},
+  isProfessional: () => false,
+  isAdmin: () => false,
 });
 
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { 
-    isLoggedIn, 
-    setIsLoggedIn, 
-    isLoading, 
-    professionalData, 
+  const {
+    isLoggedIn,
+    setIsLoggedIn,
+    isLoading,
+    professionalData,
     setProfessionalData
   } = useAuthState();
-  
+
   const { logout } = useLogout();
+
+  // Role and profile state
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  // Load user profile and role when authentication state changes
+  useEffect(() => {
+    const loadUserProfile = async () => {
+      if (isLoggedIn) {
+        try {
+          const profile = await AuthService.getUserProfile();
+          const role = await AuthService.getUserRole();
+          setUserProfile(profile);
+          setUserRole(role);
+        } catch (error) {
+          console.error("Failed to load user profile:", error);
+        }
+      } else {
+        setUserProfile(null);
+        setUserRole(null);
+      }
+    };
+
+    loadUserProfile();
+  }, [isLoggedIn]);
   
   const refreshProfessionalData = useCallback(async (): Promise<boolean> => {
     try {
@@ -53,15 +84,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [setProfessionalData]);
 
+  const refreshUserProfile = useCallback(async (): Promise<boolean> => {
+    try {
+      const profile = await AuthService.getUserProfile();
+      const role = await AuthService.getUserRole();
+
+      if (profile && role) {
+        setUserProfile(profile);
+        setUserRole(role);
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error("Error refreshing user profile:", error);
+      return false;
+    }
+  }, []);
+
+  const isProfessional = useCallback((): boolean => {
+    return userRole === 'professional';
+  }, [userRole]);
+
+  const isAdmin = useCallback((): boolean => {
+    return userRole === 'admin';
+  }, [userRole]);
+
   return (
-    <AuthContext.Provider 
-      value={{ 
-        isLoggedIn, 
-        isLoading, 
-        professionalData, 
+    <AuthContext.Provider
+      value={{
+        isLoggedIn,
+        isLoading,
+        professionalData,
+        userProfile,
+        userRole,
         logout,
         refreshProfessionalData,
-        setIsLoggedIn
+        refreshUserProfile,
+        setIsLoggedIn,
+        isProfessional,
+        isAdmin
       }}
     >
       {children}

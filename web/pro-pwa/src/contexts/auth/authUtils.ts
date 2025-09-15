@@ -1,7 +1,7 @@
 
-import { supabase } from "@/integrations/supabase/client";
 import { Professional } from "@/types/profile";
-import { getProfessionalData, saveProfessionalData, clearProfessionalData } from "@/utils/storageUtils";
+import { getProfessionalData, saveProfessionalData, clearProfessionalData, getAuthToken } from "@/utils/storageUtils";
+import { AuthService } from "@/services/authService";
 
 /**
  * Clears all authentication-related timeouts
@@ -17,7 +17,7 @@ export const clearAuthTimeouts = (timeoutsRef: React.MutableRefObject<ReturnType
 export const refreshProfessionalDataFromStorage = async (): Promise<Professional | null> => {
   try {
     const data = getProfessionalData();
-    
+
     if (!data?.id) {
       console.log("No professional data found during refresh");
       return null;
@@ -32,14 +32,21 @@ export const refreshProfessionalDataFromStorage = async (): Promise<Professional
 };
 
 /**
- * Checks if the user is authenticated by getting the current session
+ * Checks if the user is authenticated using microservices token validation
  */
 export const checkAuthSession = async () => {
-  const { data: { session } } = await supabase.auth.getSession();
+  const token = getAuthToken();
   const storedProfessionalData = getProfessionalData();
-  
-  console.log("Auth check - session exists:", !!session?.user);
+
+  console.log("Auth check - token exists:", !!token);
   console.log("Auth check - professionalData exists:", !!storedProfessionalData?.id);
-  
-  return { session, storedProfessionalData };
+
+  // If we have both token and professional data, consider authenticated
+  const isAuthenticated = !!(token && storedProfessionalData?.id);
+
+  // Return session-like structure for compatibility
+  return {
+    session: isAuthenticated ? { user: { id: storedProfessionalData.id } } : null,
+    storedProfessionalData
+  };
 };

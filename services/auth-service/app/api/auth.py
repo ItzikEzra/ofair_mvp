@@ -20,7 +20,7 @@ from ..models.auth import (
     VerifyOTPRequest, VerifyOTPResponse,
     RefreshTokenRequest, RefreshTokenResponse,
     RevokeTokenRequest, RevokeTokenResponse,
-    TokenData, TokenClaims, UserStatus, UserRole
+    TokenData, TokenClaims, UserStatus, UserRole, ContactType
 )
 from ..deps import (
     get_redis_client, get_current_user, get_limiter,
@@ -29,6 +29,7 @@ from ..deps import (
     mask_contact
 )
 from ..services.otp_service import otp_service
+from ..database import db
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +71,34 @@ async def send_otp(
                 expires_in=0,
                 retry_after=retry_after
             )
-        
+
+        # Check if user exists and has professional role (Pro app only allows professionals)
+        if request.contact_type == ContactType.PHONE or (not request.contact_type and '@' not in request.contact):
+            is_professional = await db.check_professional_exists(request.contact)
+            if not is_professional:
+                # Check if user exists but is not a professional
+                user_data = await db.get_user_by_phone(request.contact)
+                if user_data and user_data.get('role') == 'customer':
+                    return SendOTPResponse(
+                        success=False,
+                        message="Access denied. This app is for professionals only.",
+                        message_he="גישה נדחתה. האפליקציה הזו מיועדת לבעלי מקצוע בלבד.",
+                        contact_type=request.contact_type or ContactType.PHONE,
+                        masked_contact=mask_contact(request.contact, request.contact_type or ContactType.PHONE),
+                        expires_in=0,
+                        retry_after=None
+                    )
+                else:
+                    return SendOTPResponse(
+                        success=False,
+                        message="Professional not registered. Please register first.",
+                        message_he="בעל מקצוע לא רשום במערכת. יש להירשם תחילה.",
+                        contact_type=request.contact_type or ContactType.PHONE,
+                        masked_contact=mask_contact(request.contact, request.contact_type or ContactType.PHONE),
+                        expires_in=0,
+                        retry_after=None
+                    )
+
         # Send OTP
         success, message_en, message_he = await otp_service.send_otp(
             request.contact,
@@ -162,23 +190,52 @@ async def verify_otp(
                 is_new_user=None
             )
         
+        # Get user data with role and profile information
+        user_data = await db.get_user_by_phone(request.contact) if "@" not in request.contact else None
+        if not user_data and not is_new_user:
+            return VerifyOTPResponse(
+                success=False,
+                message="User not found in system",
+                message_he="המשתמש לא נמצא במערכת",
+                token_data=None,
+                user_status=None,
+                is_new_user=None
+            )
+
         # Create user session and tokens
-        user_id = await _get_or_create_user(request.contact, is_new_user)
-        
+        user_id = await _get_or_create_user(request.contact, is_new_user, user_data)
+
         # Determine contact type
         contact_type = "email" if "@" in request.contact else "phone"
-        
-        # Create token claims
+
+        # Get role from user data or default to professional for pro app
+        user_role = user_data.get('role', 'professional') if user_data else 'professional'
+
+        # Verify user has professional role for pro app access
+        if user_role != 'professional':
+            return VerifyOTPResponse(
+                success=False,
+                message="Access denied. This app is for professionals only.",
+                message_he="גישה נדחתה. האפליקציה הזו מיועדת לבעלי מקצוע בלבד.",
+                token_data=None,
+                user_status=None,
+                is_new_user=None
+            )
+
+        # Create token claims with role and profile information
         now = datetime.utcnow()
         exp = now + timedelta(minutes=settings.jwt_expire_minutes)
         jti = str(uuid.uuid4())  # Unique token ID for revocation
-        
+
         token_claims = {
             "sub": user_id,
             "user_id": user_id,  # Include user_id for service compatibility
             "contact": request.contact,
             "contact_type": contact_type,
-            "role": UserRole.CONSUMER.value,  # Default role
+            "role": user_role,
+            "profile_id": user_data.get('professional_profile_id') if user_data else None,
+            "business_name": user_data.get('business_name') if user_data else None,
+            "service_category": user_data.get('service_category') if user_data else None,
             "iat": int(now.timestamp()),
             "exp": int(exp.timestamp()),
             "jti": jti
@@ -186,7 +243,7 @@ async def verify_otp(
         
         # Create tokens
         access_token = create_access_token(token_claims)
-        refresh_token = await _create_refresh_token(user_id, jti)
+        refresh_token = await _create_refresh_token(user_id, jti, request.contact, contact_type, user_role)
         
         # Store session info
         await _store_user_session(user_id, jti, request.device_info)
@@ -197,7 +254,7 @@ async def verify_otp(
             token_type="bearer",
             expires_in=settings.jwt_expire_minutes * 60,
             user_id=user_id,
-            user_role=UserRole.CONSUMER
+            user_role=UserRole.PROFESSIONAL if user_role == 'professional' else UserRole.CONSUMER
         )
         
         return VerifyOTPResponse(
@@ -255,16 +312,23 @@ async def refresh_token(
         exp = now + timedelta(minutes=settings.jwt_expire_minutes)
         new_jti = str(uuid.uuid4())
         
-        # Get user info (simplified - in real implementation, get from database)
+        # Get current user info from database for fresh profile data
         contact = refresh_info.get("contact", "")
         contact_type = refresh_info.get("contact_type", "phone")
-        role = refresh_info.get("role", UserRole.CONSUMER.value)
+
+        # Get fresh user data from database
+        user_data = await db.get_user_by_phone(contact) if contact_type == "phone" else None
+        role = user_data.get('role', 'professional') if user_data else 'professional'
         
         token_claims = {
             "sub": user_id,
+            "user_id": user_id,
             "contact": contact,
             "contact_type": contact_type,
             "role": role,
+            "profile_id": user_data.get('professional_profile_id') if user_data else None,
+            "business_name": user_data.get('business_name') if user_data else None,
+            "service_category": user_data.get('service_category') if user_data else None,
             "iat": int(now.timestamp()),
             "exp": int(exp.timestamp()),
             "jti": new_jti
@@ -272,7 +336,7 @@ async def refresh_token(
         
         # Create new tokens
         access_token = create_access_token(token_claims)
-        new_refresh_token = await _create_refresh_token(user_id, new_jti)
+        new_refresh_token = await _create_refresh_token(user_id, new_jti, contact, contact_type, role)
         
         # Revoke old refresh token
         await redis_client.delete(f"refresh_token:{request.refresh_token}")
@@ -422,7 +486,7 @@ async def logout(
 
 
 # Helper functions
-async def _get_or_create_user(contact: str, is_new_user: bool) -> str:
+async def _get_or_create_user(contact: str, is_new_user: bool, user_data: dict = None) -> str:
     """Get existing user or create new user in database."""
     from python_shared.database.connection import get_db_engine
     from sqlalchemy import text
@@ -446,6 +510,11 @@ async def _get_or_create_user(contact: str, is_new_user: bool) -> str:
             if existing_user:
                 user_id = str(existing_user[0])
                 logger.info(f"Existing user found: {user_id}")
+                return user_id
+            elif user_data and user_data.get('id'):
+                # Use user_id from provided user_data
+                user_id = str(user_data['id'])
+                logger.info(f"User ID from provided data: {user_id}")
                 return user_id
 
             # Create new user if is_new_user or doesn't exist
@@ -493,7 +562,7 @@ async def _get_or_create_user(contact: str, is_new_user: bool) -> str:
         return user_id
 
 
-async def _create_refresh_token(user_id: str, jti: str) -> str:
+async def _create_refresh_token(user_id: str, jti: str, contact: str = "", contact_type: str = "phone", role: str = "professional") -> str:
     """Create and store refresh token."""
     redis_client = await get_redis_client()
     
@@ -501,6 +570,9 @@ async def _create_refresh_token(user_id: str, jti: str) -> str:
     refresh_data = {
         "user_id": user_id,
         "jti": jti,
+        "contact": contact,
+        "contact_type": contact_type,
+        "role": role,
         "created_at": datetime.utcnow().isoformat(),
         "expires_at": (datetime.utcnow() + timedelta(days=30)).isoformat()
     }

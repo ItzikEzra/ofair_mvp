@@ -7,11 +7,11 @@ import EmptyState from "@/components/ui/empty-state";
 import ErrorState from "@/components/ui/error-state";
 import { Loader2, PlusCircle, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/leads";
 import LeadCard from "@/components/leads/LeadCard";
-import { useProfessionalId } from "@/hooks/useProfessionalId";
+import { useAuth } from "@/contexts/auth/AuthContext";
+import { LeadsService } from "@/services/leadsService";
 
 const Leads = () => {
   const navigate = useNavigate();
@@ -19,30 +19,22 @@ const Leads = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const { professionalId } = useProfessionalId();
+  const { isLoggedIn, professionalData } = useAuth();
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setIsAuthenticated(!!session);
-    };
-    checkAuth();
+    if (!isLoggedIn || !professionalData) {
+      setIsLoading(false);
+      return;
+    }
 
     const fetchLeads = async () => {
       try {
         setIsLoading(true);
         setError("");
-        
-        console.log("Fetching active leads via edge function");
-        const { data, error } = await supabase.functions.invoke('get-active-leads');
-        
-        if (error) {
-          console.error("Error fetching leads:", error);
-          setError("אירעה שגיאה בטעינת לוח המודעות, נסה שוב מאוחר יותר");
-          return;
-        }
-        
+
+        console.log("Fetching active leads from new microservices");
+        const data = await LeadsService.getPublicLeads();
+
         console.log(`Received ${data?.length || 0} leads from the API`);
         setLeads(data || []);
       } catch (err) {
@@ -54,20 +46,10 @@ const Leads = () => {
     };
 
     fetchLeads();
-    
-    // Create storage bucket for lead images if needed
-    if (isAuthenticated) {
-      supabase.functions.invoke('create-storage-bucket')
-        .then(({ error }) => {
-          if (error) {
-            console.error("Error creating storage bucket:", error);
-          }
-        });
-    }
-  }, []);
+  }, [isLoggedIn, professionalData]);
 
   const handleActionClick = (path: string) => {
-    if (!isAuthenticated) {
+    if (!isLoggedIn) {
       toast({
         title: "התחברות נדרשת",
         description: "יש להתחבר למערכת כדי לבצע פעולה זו",

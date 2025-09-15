@@ -6,9 +6,8 @@ import AuthHeader from "@/components/auth/AuthHeader";
 import OTPLoginForm from "@/components/auth/OTPLoginForm";
 import ResetPasswordForm from "@/components/auth/ResetPasswordForm";
 import ThemeToggle from "@/components/ThemeToggle";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth/AuthContext";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 const Auth = () => {
   const {
@@ -26,7 +25,6 @@ const Auth = () => {
   const redirectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const maxRedirectAttemptsRef = useRef(3);
   const redirectAttemptsRef = useRef(0);
-  const [testPhone, setTestPhone] = useState("0545308505");
 
   // פירוק התלות במידע מאוחסן כדי למנוע לולאות אינסופיות
   useEffect(() => {
@@ -99,67 +97,6 @@ const Auth = () => {
       setActiveTab("reset");
     }
   }, [isReset]);
-  const testEnvs = async () => {
-    console.log('Testing environment variables...');
-    const {
-      data,
-      error
-    } = await supabase.functions.invoke('test-envs');
-    if (error) {
-      console.error('Error testing envs:', error);
-      toast({
-        title: "שגיאה בבדיקת משתני סביבה",
-        description: `אירעה שגיאה: ${error.message}`,
-        variant: "destructive"
-      });
-    } else {
-      console.log('Env test results:', data);
-      const allSet = data.SUPABASE_URL && data.SUPABASE_SERVICE_ROLE_KEY && data.SMS_019_API_TOKEN && data.SMS_019_APP_ID && data.SMS_019_SENDER_NUMBER;
-      toast({
-        title: allSet ? "בדיקת סביבה עברה בהצלחה" : "בעיה במשתני סביבה",
-        description: <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4"><code className="text-white">{JSON.stringify(data, null, 2)}</code></pre>,
-        variant: allSet ? "default" : "destructive",
-        duration: 9000
-      });
-    }
-  };
-  const test019API = async () => {
-    if (!testPhone) {
-      toast({
-        title: "נא להזין מספר טלפון לבדיקה",
-        variant: "destructive"
-      });
-      return;
-    }
-    console.log(`Testing 019 API with phone: ${testPhone}`);
-    try {
-      const {
-        data,
-        error
-      } = await supabase.functions.invoke('test-019-api', {
-        body: {
-          phone: testPhone
-        }
-      });
-      if (error) {
-        throw error;
-      }
-      console.log('019 API test results:', data);
-      toast({
-        title: "תוצאות בדיקת 019 API",
-        description: <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4"><code className="text-white">{JSON.stringify(data, null, 2)}</code></pre>,
-        variant: data.status === 200 && data.body?.includes('<status>0</status>') ? "default" : "destructive",
-        duration: 15000
-      });
-    } catch (error: any) {
-      console.error('Error testing 019 API:', error);
-      toast({
-        title: "שגיאה בבדיקת 019 API",
-        description: `אירעה שגיאה: ${error.message}`,
-        variant: "destructive"
-      });
-    }
-  };
   if (isLoading) {
     return <div className="min-h-screen flex flex-col justify-center items-center bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20 text-foreground p-4 rtl">
         {/* Floating background elements */}

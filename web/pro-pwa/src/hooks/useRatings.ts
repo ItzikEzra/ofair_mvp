@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useProfessionalId } from "@/hooks/useProfessionalId";
 import { useToast } from "@/hooks/use-toast";
 import { getAuthToken } from "@/utils/storageUtils";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth/AuthContext";
 
 export interface Rating {
   id: string;

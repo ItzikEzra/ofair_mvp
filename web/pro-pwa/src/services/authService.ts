@@ -7,35 +7,55 @@ import apiClient from './apiClient';
 import { SERVICE_ENDPOINTS } from '@/config/apiConfig';
 
 export interface SendOtpRequest {
-  phone?: string;
-  email?: string;
+  contact: string;
+  contact_type?: 'phone' | 'email';
+  language?: string;
 }
 
 export interface SendOtpResponse {
+  success: boolean;
   message: string;
-  delivery_method: string;
-  expires_at: string;
+  message_he: string;
+  contact_type: string;
+  masked_contact: string;
+  expires_in: number;
+  retry_after?: number;
 }
 
 export interface VerifyOtpRequest {
-  phone?: string;
-  email?: string;
+  contact: string;
   otp: string;
+  contact_type?: 'phone' | 'email';
 }
 
-export interface VerifyOtpResponse {
+export interface TokenData {
   access_token: string;
+  refresh_token: string;
   token_type: string;
   expires_in: number;
   user_id: string;
-  professional_id?: string;
+  user_role: 'professional' | 'customer' | 'admin' | 'support';
+}
+
+export interface VerifyOtpResponse {
+  success: boolean;
+  message: string;
+  message_he: string;
+  token_data?: TokenData;
+  user_status?: string;
+  is_new_user?: boolean;
 }
 
 export interface TokenValidationResponse {
   valid: boolean;
   user_id?: string;
-  professional_id?: string;
-  expires_at?: string;
+  contact?: string;
+  contact_type?: string;
+  role?: string;
+  profile_id?: string;
+  business_name?: string;
+  service_category?: string;
+  authenticated?: boolean;
 }
 
 export class AuthService {
@@ -71,7 +91,9 @@ export class AuthService {
     }
 
     // Store the token in the API client
-    apiClient.setToken(response.data.access_token);
+    if (response.data.token_data?.access_token) {
+      apiClient.setToken(response.data.token_data.access_token);
+    }
 
     return response.data;
   }
@@ -89,10 +111,13 @@ export class AuthService {
     try {
       const response = await apiClient.get<TokenValidationResponse>(
         'auth',
-        '/auth/validate-token'
+        '/auth/me'
       );
 
-      return response.data || { valid: false };
+      return {
+        valid: true,
+        ...response.data
+      } || { valid: false };
     } catch (error) {
       console.error('Token validation failed:', error);
       return { valid: false };
@@ -109,9 +134,9 @@ export class AuthService {
         SERVICE_ENDPOINTS.auth.refresh
       );
 
-      if (response.data) {
+      if (response.data?.token_data?.access_token) {
         // Update token in API client
-        apiClient.setToken(response.data.access_token);
+        apiClient.setToken(response.data.token_data.access_token);
         return response.data;
       }
 
@@ -173,6 +198,54 @@ export class AuthService {
    */
   static clearAuth(): void {
     apiClient.setToken(null);
+  }
+
+  /**
+   * Get user role from current token
+   */
+  static async getUserRole(): Promise<string | null> {
+    const validation = await this.validateToken();
+    return validation.role || null;
+  }
+
+  /**
+   * Get user profile information from current token
+   */
+  static async getUserProfile(): Promise<{
+    user_id?: string;
+    profile_id?: string;
+    business_name?: string;
+    service_category?: string;
+    role?: string;
+  } | null> {
+    const validation = await this.validateToken();
+    if (!validation.valid) {
+      return null;
+    }
+
+    return {
+      user_id: validation.user_id,
+      profile_id: validation.profile_id,
+      business_name: validation.business_name,
+      service_category: validation.service_category,
+      role: validation.role
+    };
+  }
+
+  /**
+   * Check if current user has professional role
+   */
+  static async isProfessional(): Promise<boolean> {
+    const role = await this.getUserRole();
+    return role === 'professional';
+  }
+
+  /**
+   * Check if current user has admin role
+   */
+  static async isAdmin(): Promise<boolean> {
+    const role = await this.getUserRole();
+    return role === 'admin';
   }
 }
 

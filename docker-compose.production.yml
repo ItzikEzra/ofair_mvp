@@ -1,0 +1,351 @@
+# Production Docker Compose Configuration for OFAIR MVP
+# Optimized for production deployment with full microservices + frontend
+
+version: '3.8'
+
+networks:
+  ofair-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+
+services:
+  # Infrastructure Services
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ofair_prod
+      POSTGRES_USER: ofair_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ofair_secure_password}
+    networks:
+      - ofair-network
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ofair_user -d ofair_prod"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-ofair_redis_password}
+    networks:
+      - ofair-network
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "auth", "${REDIS_PASSWORD:-ofair_redis_password}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-ofair_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-ofair_minio_secure_password}
+    networks:
+      - ofair-network
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # Backend Microservices
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://ofair_user:${POSTGRES_PASSWORD:-ofair_secure_password}@postgres:5432/ofair_prod
+      REDIS_URL: redis://:${REDIS_PASSWORD:-ofair_redis_password}@redis:6379/0
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-ofair_jwt_production_secret_key_change_me}
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-ofair_minio}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-ofair_minio_secure_password}
+      S3_BUCKET: "ofair-uploads"
+      S3_ENDPOINT: "http://minio:9000"
+      SMS019_USERNAME: ${SMS019_USERNAME:-infoofair}
+      SMS019_PASSWORD: ${SMS019_PASSWORD:-Ofair@770}
+      SMS019_SENDER_NUMBER: ${SMS019_SENDER_NUMBER:-0505577565}
+      ENVIRONMENT: production
+    networks:
+      - ofair-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  users-service:
+    build:
+      context: .
+      dockerfile: services/users-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://ofair_user:${POSTGRES_PASSWORD:-ofair_secure_password}@postgres:5432/ofair_prod
+      REDIS_URL: redis://:${REDIS_PASSWORD:-ofair_redis_password}@redis:6379/1
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-ofair_jwt_production_secret_key_change_me}
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-ofair_minio}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-ofair_minio_secure_password}
+      S3_BUCKET: "ofair-uploads"
+      S3_ENDPOINT: "http://minio:9000"
+      ENVIRONMENT: production
+    networks:
+      - ofair-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  leads-service:
+    build:
+      context: .
+      dockerfile: services/leads-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://ofair_user:${POSTGRES_PASSWORD:-ofair_secure_password}@postgres:5432/ofair_prod
+      REDIS_URL: redis://:${REDIS_PASSWORD:-ofair_redis_password}@redis:6379/2
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-ofair_jwt_production_secret_key_change_me}
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-ofair_minio}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-ofair_minio_secure_password}
+      S3_BUCKET: "ofair-uploads"
+      S3_ENDPOINT: "http://minio:9000"
+      ENVIRONMENT: production
+    networks:
+      - ofair-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  proposals-service:
+    build:
+      context: .
+      dockerfile: services/proposals-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://ofair_user:${POSTGRES_PASSWORD:-ofair_secure_password}@postgres:5432/ofair_prod
+      REDIS_URL: redis://:${REDIS_PASSWORD:-ofair_redis_password}@redis:6379/3
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-ofair_jwt_production_secret_key_change_me}
+      ENVIRONMENT: production
+    networks:
+      - ofair-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  referrals-service:
+    build:
+      context: .
+      dockerfile: services/referrals-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://ofair_user:${POSTGRES_PASSWORD:-ofair_secure_password}@postgres:5432/ofair_prod
+      REDIS_URL: redis://:${REDIS_PASSWORD:-ofair_redis_password}@redis:6379/4
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-ofair_jwt_production_secret_key_change_me}
+      ENVIRONMENT: production
+    networks:
+      - ofair-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  payments-service:
+    build:
+      context: .
+      dockerfile: services/payments-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://ofair_user:${POSTGRES_PASSWORD:-ofair_secure_password}@postgres:5432/ofair_prod
+      REDIS_URL: redis://:${REDIS_PASSWORD:-ofair_redis_password}@redis:6379/5
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-ofair_jwt_production_secret_key_change_me}
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-ofair_minio}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-ofair_minio_secure_password}
+      S3_BUCKET: "ofair-uploads"
+      S3_ENDPOINT: "http://minio:9000"
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_your_stripe_secret_key}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-pk_test_your_stripe_publishable_key}
+      ENVIRONMENT: production
+    networks:
+      - ofair-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  notifications-service:
+    build:
+      context: .
+      dockerfile: services/notifications-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://ofair_user:${POSTGRES_PASSWORD:-ofair_secure_password}@postgres:5432/ofair_prod
+      REDIS_URL: redis://:${REDIS_PASSWORD:-ofair_redis_password}@redis:6379/6
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-ofair_jwt_production_secret_key_change_me}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-your_twilio_account_sid}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-your_twilio_auth_token}
+      ENVIRONMENT: production
+    networks:
+      - ofair-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  admin-service:
+    build:
+      context: .
+      dockerfile: services/admin-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://ofair_user:${POSTGRES_PASSWORD:-ofair_secure_password}@postgres:5432/ofair_prod
+      REDIS_URL: redis://:${REDIS_PASSWORD:-ofair_redis_password}@redis:6379/7
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-ofair_jwt_production_secret_key_change_me}
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-ofair_minio}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-ofair_minio_secure_password}
+      S3_BUCKET: "ofair-uploads"
+      S3_ENDPOINT: "http://minio:9000"
+      ENVIRONMENT: production
+    networks:
+      - ofair-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend Services
+  pro-pwa:
+    build:
+      context: ./web/pro-pwa
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Production API endpoints (internal Docker network)
+      VITE_API_BASE_URL: http://auth-service:8000
+      VITE_AUTH_SERVICE_PORT: 8000
+      VITE_USERS_SERVICE_PORT: 8000
+      VITE_LEADS_SERVICE_PORT: 8000
+      VITE_PROPOSALS_SERVICE_PORT: 8000
+      VITE_REFERRALS_SERVICE_PORT: 8000
+      VITE_PAYMENTS_SERVICE_PORT: 8000
+      VITE_NOTIFICATIONS_SERVICE_PORT: 8000
+      VITE_ADMIN_SERVICE_PORT: 8000
+      VITE_NODE_ENV: production
+      VITE_API_TIMEOUT: 10000
+    networks:
+      - ofair-network
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      users-service:
+        condition: service_healthy
+      leads-service:
+        condition: service_healthy
+      proposals-service:
+        condition: service_healthy
+      referrals-service:
+        condition: service_healthy
+      payments-service:
+        condition: service_healthy
+      notifications-service:
+        condition: service_healthy
+      admin-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Load Balancer / Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    networks:
+      - ofair-network
+    depends_on:
+      - pro-pwa
+      - auth-service
+      - users-service
+      - leads-service
+      - proposals-service
+      - referrals-service
+      - payments-service
+      - notifications-service
+      - admin-service
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

@@ -1,0 +1,6 @@
+{
+  "appId": "com.ofair",
+  "appName": "Ofair",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+} 

@@ -1,0 +1,298 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 220 15% 25%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 15% 25%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 25%;
+
+    --primary: 210 64% 24%;
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 168 100% 41%;
+    --secondary-foreground: 168 100% 8%;
+
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 8% 46%;
+
+    --accent: 220 14% 96%;
+    --accent-foreground: 220 15% 25%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 210 64% 24%;
+
+    --radius: 1rem;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 220 8% 46%;
+    --sidebar-primary: 220 15% 25%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent-foreground: 220 15% 25%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 210 64% 24%;
+  }
+
+  .dark {
+    --background: 220 27% 4%;
+    --foreground: 0 0% 95%;
+    --card: 220 27% 4%;
+    --card-foreground: 0 0% 95%;
+    --popover: 220 27% 4%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 220 27% 4%;
+    --secondary: 220 20% 14%;
+    --secondary-foreground: 0 0% 95%;
+    --muted: 220 20% 14%;
+    --muted-foreground: 220 8% 65%;
+    --accent: 220 20% 14%;
+    --accent-foreground: 0 0% 95%;
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 20% 14%;
+    --input: 220 20% 14%;
+    --ring: 0 0% 95%;
+    --sidebar-background: 220 27% 4%;
+    --sidebar-foreground: 220 8% 65%;
+    --sidebar-primary: 0 0% 98%;
+    --sidebar-primary-foreground: 220 27% 4%;
+    --sidebar-accent: 220 20% 14%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 220 20% 14%;
+    --sidebar-ring: 0 0% 95%;
+  }
+
+  /* Safe area support for mobile */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 1rem);
+  }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 1rem);
+  }
+
+  /* Optimized loading animations */
+  .loading-shimmer {
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    direction: rtl;
+    font-family: 'Heebo', 'Rubik', sans-serif;
+  }
+
+  body {
+    @apply bg-gradient-to-br from-slate-50 to-blue-50/30 text-foreground transition-colors duration-300;
+    min-height: 100vh;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    font-weight: 400;
+    font-family: 'Heebo', 'Rubik', sans-serif;
+  }
+
+  /* Hebrew text optimization */
+  .hebrew-text {
+    font-family: 'Heebo', 'Rubik', sans-serif;
+    direction: rtl;
+    text-align: right;
+  }
+
+  /* Mixed content (Hebrew + English) */
+  .mixed-content {
+    font-family: 'Heebo', 'Rubik', sans-serif;
+    direction: rtl;
+    text-align: right;
+  }
+
+  /* English-only content */
+  .english-text {
+    direction: ltr;
+    text-align: left;
+    font-family: 'Rubik', sans-serif;
+  }
+
+  /* RTL-aware form inputs */
+  .rtl-input {
+    direction: rtl;
+    text-align: right;
+  }
+
+  /* Phone number inputs (always LTR) */
+  .phone-input {
+    direction: ltr;
+    text-align: left;
+  }
+}
+
+@layer components {
+  /* Modern Glass Morphism Cards */
+  .stat-card {
+    @apply rounded-2xl p-6 backdrop-blur-sm bg-white/60 border border-white/20 shadow-xl shadow-blue-500/5 transition-all duration-500 hover:shadow-2xl hover:shadow-blue-500/10 hover:scale-[1.02] hover:bg-white/70;
+  }
+  
+  .lead-card {
+    @apply rounded-2xl bg-white/70 backdrop-blur-sm shadow-lg shadow-slate-900/5 p-6 border border-white/30 transition-all duration-500 hover:shadow-xl hover:shadow-slate-900/10 hover:scale-[1.01] hover:bg-white/80;
+  }
+
+  /* Modern Glass Button Styles */
+  .glass-button {
+    @apply relative overflow-hidden rounded-xl bg-white/20 backdrop-blur-sm border border-white/30 text-foreground font-medium transition-all duration-300 hover:bg-white/30 hover:scale-105 active:scale-95;
+  }
+
+  .glass-button-primary {
+    @apply glass-button bg-ofair-blue/10 border-ofair-blue/20 text-ofair-blue hover:bg-ofair-blue/20 hover:border-ofair-blue/30;
+  }
+
+  .glass-button-secondary {
+    @apply glass-button bg-ofair-turquoise/10 border-ofair-turquoise/20 text-ofair-turquoise hover:bg-ofair-turquoise/20 hover:border-ofair-turquoise/30;
+  }
+
+  .glass-button-success {
+    @apply glass-button bg-emerald-500/10 border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20;
+  }
+
+  .glass-button-danger {
+    @apply glass-button bg-red-500/10 border-red-500/20 text-red-600 hover:bg-red-500/20;
+  }
+  
+  /* Navigation Enhancements */
+  .nav-item {
+    @apply flex flex-col items-center justify-center text-xs font-medium transition-all duration-300 p-3 rounded-xl;
+  }
+  
+  .nav-item.active {
+    @apply text-ofair-turquoise bg-ofair-turquoise/10 backdrop-blur-sm scale-110;
+  }
+  
+  .nav-item.inactive {
+    @apply text-slate-500 hover:text-ofair-blue hover:bg-white/30 hover:scale-105;
+  }
+
+  /* Enhanced Form Components */
+  .form-container {
+    @apply w-full p-6 mx-auto;
+  }
+  
+  .form-group {
+    @apply mb-6;
+  }
+  
+  .form-label {
+    @apply block text-sm font-semibold mb-2 text-slate-700;
+  }
+  
+  .form-input {
+    @apply w-full p-4 rounded-xl border border-white/30 bg-white/70 backdrop-blur-sm transition-all duration-300 focus:bg-white/90 focus:border-ofair-blue/50 focus:shadow-lg focus:shadow-ofair-blue/10;
+  }
+  
+  .form-button {
+    @apply w-full py-4 rounded-xl font-semibold transition-all duration-300 shadow-lg;
+  }
+
+  /* Modern Badge Styles */
+  .modern-badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-sm border transition-all duration-300;
+  }
+
+  /* Floating Action Button */
+  .fab {
+    @apply fixed bottom-6 left-6 w-14 h-14 rounded-full bg-gradient-to-r from-ofair-blue to-ofair-turquoise text-white shadow-2xl shadow-ofair-blue/25 transition-all duration-300 hover:scale-110 hover:shadow-3xl hover:shadow-ofair-blue/30 active:scale-95;
+  }
+
+  /* Enhanced Hover Effects */
+  .hover-lift {
+    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-xl;
+  }
+
+  .hover-glow {
+    @apply transition-all duration-300 hover:shadow-lg hover:shadow-current/20;
+  }
+
+  /* Shimmer Effect */
+  .shimmer {
+    @apply relative overflow-hidden;
+  }
+
+  .shimmer::before {
+    @apply absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent;
+    content: '';
+    animation: shimmer 2s infinite;
+  }
+
+  @keyframes shimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  /* Glass Morphism Containers */
+  .glass-container {
+    @apply backdrop-blur-lg bg-white/30 border border-white/20 rounded-2xl shadow-xl;
+  }
+
+  .glass-panel {
+    @apply backdrop-blur-md bg-white/40 border border-white/30 rounded-xl shadow-lg;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-slate-100 rounded-full;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 rounded-full hover:bg-slate-400;
+}
+
+/* Enhanced Animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); }
+  50% { box-shadow: 0 0 30px rgba(59, 130, 246, 0.6); }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}

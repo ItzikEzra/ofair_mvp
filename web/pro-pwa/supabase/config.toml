@@ -1,0 +1,40 @@
+project_id = "erlfsougrkzbgonumhoa"
+
+[functions.submit-quote]
+verify_jwt = false
+
+[functions.update-work-completion]
+verify_jwt = false
+
+[functions.get-public-professionals]
+verify_jwt = false
+
+[functions.validate-token]
+verify_jwt = false
+
+[functions.refresh-token]
+verify_jwt = false
+
+[functions.submit-lead-proposal]
+verify_jwt = false
+
+[functions.get-my-professional-ratings]
+verify_jwt = false
+
+[functions.get-professional-profile]
+verify_jwt = false
+
+[functions.update-professional-profile]
+verify_jwt = false
+
+[functions.upload-certificate]
+verify_jwt = false
+
+[functions.list-certificates]
+verify_jwt = false
+
+[functions.delete-certificate]
+verify_jwt = false
+
+[functions.upload-image]
+verify_jwt = false

@@ -5,10 +5,11 @@ import { useToast } from "@/hooks/use-toast";
 import AuthHeader from "@/components/auth/AuthHeader";
 import OTPLoginForm from "@/components/auth/OTPLoginForm";
 import ResetPasswordForm from "@/components/auth/ResetPasswordForm";
+import ProfessionalRegistrationForm from "@/components/auth/ProfessionalRegistrationForm";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useAuth } from "@/contexts/auth/AuthContext";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useRegistration } from "@/hooks/useRegistration";
+
 const Auth = () => {
   const {
     toast
@@ -16,11 +17,13 @@ const Auth = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isReset = searchParams.get("reset") === "true";
-  const [activeTab, setActiveTab] = useState("login");
+  const isRegistered = searchParams.get("registered") === "true";
+  const [activeTab, setActiveTab] = useState(isRegistered ? "login" : "login");
   const {
     isLoggedIn,
     isLoading
   } = useAuth();
+  const { registerProfessional, isLoading: isRegistering } = useRegistration();
   const redirectAttemptedRef = useRef(false);
   const redirectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const maxRedirectAttemptsRef = useRef(3);
@@ -95,8 +98,14 @@ const Auth = () => {
   useEffect(() => {
     if (isReset || window.location.hash.includes('type=recovery')) {
       setActiveTab("reset");
+    } else if (isRegistered) {
+      setActiveTab("login");
+      toast({
+        title: "הרשמה הושלמה בהצלחה!",
+        description: "כעת ניתן להתחבר עם מספר הטלפון שלך",
+      });
     }
-  }, [isReset]);
+  }, [isReset, isRegistered, toast]);
   if (isLoading) {
     return <div className="min-h-screen flex flex-col justify-center items-center bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20 text-foreground p-4 rtl">
         {/* Floating background elements */}
@@ -160,14 +169,13 @@ const Auth = () => {
             </TabsContent>
             
             <TabsContent value="register">
-              <div className="text-center mb-6 bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-2xl border border-purple-100">
-                <p className="text-gray-600 mb-4 leading-relaxed">
-                  מעוניינים להירשם לשירות?
-                </p>
-                <a href="https://biz.ofair.co.il" className="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 font-medium" target="_blank" rel="noopener noreferrer">
-                  לחצו כאן וגלו איך עופר עוזרת לכם להרוויח
-                </a>
+              <div className="text-center mb-6 text-gray-600 leading-relaxed bg-green-50/50 backdrop-blur-sm p-4 rounded-2xl border border-green-100">
+                הירשמו כמקצוענים במערכת עופר ותתחילו לקבל הזדמנויות עבודה
               </div>
+              <ProfessionalRegistrationForm
+                onSuccess={registerProfessional}
+                isLoading={isRegistering}
+              />
             </TabsContent>
           </Tabs>
         </div>

@@ -122,7 +122,7 @@ class TestUserEndpoints:
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert "User not found" in response.json()["detail"]
     
-    @pytest_asyncio.async def test_get_current_user_profile_success(self, test_user_token, test_user_data):
+    async def test_get_current_user_profile_success(self, test_user_token, test_user_data):
         """Test successful retrieval of current user profile."""
         # Create test user
         user = User(
@@ -148,7 +148,7 @@ class TestUserEndpoints:
         assert data["email"] == test_user_data["email"]
         assert data["role"] == "consumer"
     
-    @pytest_asyncio.async def test_update_current_user_profile(self, test_user_token, test_user_data):
+    async def test_update_current_user_profile(self, test_user_token, test_user_data):
         """Test updating current user profile."""
         # Create test user
         user = User(
@@ -198,7 +198,7 @@ class TestUserEndpoints:
         response = client.put("/users/me", json=update_data)
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
     
-    @pytest_asyncio.async def test_create_user_profile(self, test_user_token, test_user_data, test_profile_data):
+    async def test_create_user_profile(self, test_user_token, test_user_data, test_profile_data):
         """Test creating user profile."""
         # Create test user
         user = User(
@@ -222,7 +222,7 @@ class TestUserEndpoints:
         assert data["address"] == test_profile_data["address"]
         assert data["preferences"] == test_profile_data["preferences"]
     
-    @pytest_asyncio.async def test_create_user_profile_already_exists(self, test_user_token, test_user_data, test_profile_data):
+    async def test_create_user_profile_already_exists(self, test_user_token, test_user_data, test_profile_data):
         """Test creating user profile when one already exists."""
         # Create test user and profile
         user = User(
@@ -247,7 +247,7 @@ class TestUserEndpoints:
         assert response.status_code == status.HTTP_409_CONFLICT
         assert "User profile already exists" in response.json()["detail"]
     
-    @pytest_asyncio.async def test_update_user_profile(self, test_user_token, test_user_data, test_profile_data):
+    async def test_update_user_profile(self, test_user_token, test_user_data, test_profile_data):
         """Test updating user profile."""
         # Create test user and profile
         user = User(
@@ -284,7 +284,7 @@ class TestUserEndpoints:
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert "User profile not found" in response.json()["detail"]
     
-    @pytest_asyncio.async def test_get_user_profile(self, test_user_token, test_user_data, test_profile_data):
+    async def test_get_user_profile(self, test_user_token, test_user_data, test_profile_data):
         """Test getting user profile."""
         # Create test user and profile
         user = User(
@@ -321,7 +321,7 @@ class TestUserEndpoints:
         assert response.status_code == status.HTTP_200_OK
         assert response.json() is None
     
-    @pytest_asyncio.async def test_delete_user_profile(self, test_user_token, test_user_data, test_profile_data):
+    async def test_delete_user_profile(self, test_user_token, test_user_data, test_profile_data):
         """Test deleting user profile."""
         # Create test user and profile
         user = User(
@@ -360,21 +360,147 @@ class TestUserEndpoints:
         assert "User profile not found" in response.json()["detail"]
 
 
+class TestProfessionalRegistration:
+    """Test professional registration endpoint."""
+
+    @pytest_asyncio.fixture(autouse=True)
+    async def setup(self, async_session):
+        """Setup test data."""
+        self.session = async_session
+
+    def get_test_client(self):
+        """Get test client without authentication for registration."""
+        async def mock_get_db_session():
+            yield self.session
+
+        app.dependency_overrides[get_db_session] = mock_get_db_session
+        return TestClient(app)
+
+    def test_register_professional_success(self):
+        """Test successful professional registration."""
+        client = self.get_test_client()
+
+        registration_data = {
+            "first_name": "משה",
+            "last_name": "כהן",
+            "phone": "+972503334444",
+            "email": "moshe@example.com",
+            "business_name": "משה שירותים",
+            "profession": "חשמל",
+            "experience_years": 5,
+            "service_area": "רמת גן",
+            "description": "חשמלאי מוסמך עם ניסיון רב"
+        }
+
+        response = client.post("/users/register/professional", json=registration_data)
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert data["success"] is True
+        assert "user_id" in data
+        assert "professional_id" in data
+        assert "הרשמה הושלמה בהצלחה" in data["message_he"]
+
+    def test_register_professional_invalid_hebrew_name(self):
+        """Test registration with invalid Hebrew name."""
+        client = self.get_test_client()
+
+        registration_data = {
+            "first_name": "John",  # English name instead of Hebrew
+            "last_name": "כהן",
+            "phone": "+972503334444",
+            "email": "john@example.com",
+            "business_name": "שירותים",
+            "profession": "חשמל",
+            "experience_years": 5,
+            "service_area": "רמת גן",
+            "description": "תיאור בעברית"
+        }
+
+        response = client.post("/users/register/professional", json=registration_data)
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    def test_register_professional_invalid_phone(self):
+        """Test registration with invalid phone number."""
+        client = self.get_test_client()
+
+        registration_data = {
+            "first_name": "משה",
+            "last_name": "כהן",
+            "phone": "050123456",  # Too short
+            "email": "moshe@example.com",
+            "business_name": "משה שירותים",
+            "profession": "חשמל",
+            "experience_years": 5,
+            "service_area": "רמת גן",
+            "description": "חשמלאי מוסמך"
+        }
+
+        response = client.post("/users/register/professional", json=registration_data)
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    def test_register_professional_duplicate_phone(self):
+        """Test registration with duplicate phone number."""
+        client = self.get_test_client()
+
+        # First registration
+        registration_data = {
+            "first_name": "משה",
+            "last_name": "כהן",
+            "phone": "+972503334445",
+            "email": "moshe@example.com",
+            "business_name": "משה שירותים",
+            "profession": "חשמל",
+            "experience_years": 5,
+            "service_area": "רמת גן",
+            "description": "חשמלאי מוסמך"
+        }
+
+        response = client.post("/users/register/professional", json=registration_data)
+        assert response.status_code == status.HTTP_200_OK
+
+        # Second registration with same phone
+        registration_data["email"] = "different@example.com"
+        response = client.post("/users/register/professional", json=registration_data)
+        assert response.status_code == status.HTTP_409_CONFLICT
+        assert "משתמש עם מספר טלפון זה כבר קיים" in response.json()["detail_he"]
+
+    def test_register_professional_missing_required_fields(self):
+        """Test registration with missing required fields."""
+        client = self.get_test_client()
+
+        # Missing profession field
+        registration_data = {
+            "first_name": "משה",
+            "last_name": "כהן",
+            "phone": "+972503334446",
+            "email": "moshe@example.com",
+            "business_name": "משה שירותים",
+            # "profession": "חשמל",  # Missing
+            "experience_years": 5,
+            "service_area": "רמת גן",
+            "description": "חשמלאי מוסמך"
+        }
+
+        response = client.post("/users/register/professional", json=registration_data)
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
 class TestUserValidation:
     """Test user data validation."""
-    
+
     def test_hebrew_name_validation(self):
         """Test Hebrew name validation."""
         from models.users import validate_hebrew_name
-        
+
         # Valid Hebrew names
         assert validate_hebrew_name("משה כהן") == "משה כהן"
         assert validate_hebrew_name("  שרה לוי  ") == "שרה לוי"
-        
+
         # Invalid names
         with pytest.raises(ValueError):
             validate_hebrew_name("")
-        
+
         with pytest.raises(ValueError):
             validate_hebrew_name("   ")
     

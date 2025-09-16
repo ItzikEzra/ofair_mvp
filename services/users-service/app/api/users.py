@@ -7,7 +7,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
+from sqlalchemy import select, update, and_
 from sqlalchemy.orm import joinedload
 
 # Add libs to path
@@ -23,11 +23,13 @@ from ..deps import (
     normalize_israeli_phone
 )
 from ..models.users import (
-    UserMe, 
-    UserUpdate, 
+    UserMe,
+    UserUpdate,
     UserProfile as UserProfileModel,
     UserProfileCreate,
-    UserProfileUpdate
+    UserProfileUpdate,
+    ProfessionalRegistration,
+    ProfessionalRegistrationResponse
 )
 
 logger = logging.getLogger(__name__)
@@ -310,31 +312,31 @@ async def delete_user_profile(
 ) -> dict:
     """
     Delete user profile.
-    
+
     Deletes the consumer profile for the authenticated user.
     """
     try:
         # Set RLS context
         await set_row_level_security(db, current_user.user_id, current_user.role)
-        
+
         # Get existing profile
         query = select(UserProfile).where(UserProfile.user_id == current_user.user_id)
         result = await db.execute(query)
         profile = result.scalar_one_or_none()
-        
+
         if not profile:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User profile not found"
             )
-        
+
         # Delete profile
         await db.delete(profile)
         await db.commit()
-        
+
         logger.info(f"User profile deleted for user {current_user.user_id}")
         return {"message": "Profile deleted successfully"}
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -343,4 +345,134 @@ async def delete_user_profile(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"
+        )
+
+
+@router.post("/register/professional", response_model=ProfessionalRegistrationResponse)
+async def register_professional(
+    registration_data: ProfessionalRegistration,
+    db: AsyncSession = Depends(get_db_session)
+) -> ProfessionalRegistrationResponse:
+    """
+    Register new professional.
+
+    Creates both a user account and professional profile in a single transaction.
+    Public endpoint for new professional registration.
+    """
+    try:
+        # Check if user already exists with this phone number
+        existing_user_query = select(User).where(User.phone == registration_data.phone)
+        result = await db.execute(existing_user_query)
+        existing_user = result.scalar_one_or_none()
+
+        if existing_user:
+            return ProfessionalRegistrationResponse(
+                success=False,
+                message="Phone number already registered. Please use login instead.",
+                message_he="מספר הטלפון כבר רשום במערכת. אנא השתמש בהתחברות."
+            )
+
+        # Check if email is already used (if provided)
+        if registration_data.email:
+            existing_email_query = select(User).where(User.email == registration_data.email)
+            result = await db.execute(existing_email_query)
+            existing_email_user = result.scalar_one_or_none()
+
+            if existing_email_user:
+                return ProfessionalRegistrationResponse(
+                    success=False,
+                    message="Email address already registered. Please use a different email.",
+                    message_he="כתובת האימייל כבר רשומה במערכת. אנא השתמש בכתובת אימייל אחרת."
+                )
+
+        # Validate inputs
+        validate_hebrew_text(registration_data.business_name, "business_name")
+        validate_hebrew_text(registration_data.profession, "profession")
+        validate_hebrew_text(registration_data.service_area, "service_area")
+        validate_hebrew_text(registration_data.description, "description")
+
+        # Normalize phone number
+        normalized_phone = normalize_israeli_phone(registration_data.phone)
+
+        # Create full name from first and last name
+        full_name = f"{registration_data.first_name} {registration_data.last_name}"
+
+        # Create new user using raw SQL to avoid enum issues
+        from sqlalchemy import text
+        import uuid
+
+        user_id = uuid.uuid4()
+        user_insert_query = """
+            INSERT INTO users (id, name, phone, email, role, status)
+            VALUES (:id, :name, :phone, :email, :role, :status)
+        """
+
+        await db.execute(
+            text(user_insert_query),
+            {
+                'id': user_id,
+                'name': full_name,
+                'phone': normalized_phone,
+                'email': registration_data.email,
+                'role': 'professional',
+                'status': 'active'
+            }
+        )
+
+        # Create professional profile using raw SQL
+        professional_profile_query = """
+            INSERT INTO professional_profiles
+            (user_id, business_name, business_number, specialties, service_areas,
+             experience_years, rating, total_reviews, verified, portfolio_items,
+             certifications, availability, pricing_info)
+            VALUES (:user_id, :business_name, :business_number, :specialties, :service_areas,
+             :experience_years, :rating, :total_reviews, :verified, :portfolio_items,
+             :certifications, :availability, :pricing_info)
+            RETURNING id
+        """
+
+        import json
+
+        result = await db.execute(
+            text(professional_profile_query),
+            {
+                'user_id': user_id,
+                'business_name': registration_data.business_name,
+                'business_number': registration_data.business_number,
+                'specialties': [registration_data.profession],  # PostgreSQL array
+                'service_areas': [registration_data.service_area],  # PostgreSQL array
+                'experience_years': registration_data.experience_years,
+                'rating': 0.0,
+                'total_reviews': 0,
+                'verified': False,
+                'portfolio_items': json.dumps([]),
+                'certifications': json.dumps([]),
+                'availability': json.dumps({}),
+                'pricing_info': json.dumps({"description": registration_data.description})
+            }
+        )
+
+        professional_profile_result = result.fetchone()
+        professional_profile_id = professional_profile_result[0]
+
+        await db.commit()
+
+        logger.info(f"New professional registered: {user_id} - {registration_data.phone}")
+
+        return ProfessionalRegistrationResponse(
+            success=True,
+            message="Registration successful! You can now login with your phone number.",
+            message_he="הרשמה הושלמה בהצלחה! כעת ניתן להתחבר עם מספר הטלפון שלך.",
+            user_id=user_id,
+            professional_id=professional_profile_id
+        )
+
+    except Exception as e:
+        logger.error(f"Error in professional registration: {e}")
+        await db.rollback()
+
+        return ProfessionalRegistrationResponse(
+            success=False,
+            message="Registration failed due to server error. Please try again later.",
+            message_he="הרשמה נכשלה עקב שגיאת שרת. אנא נסה שוב מאוחר יותר."
         )

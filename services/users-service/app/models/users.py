@@ -83,6 +83,52 @@ class UserMe(User):
     pass
 
 
+class ProfessionalRegistration(BaseModel):
+    """Professional registration request model."""
+    # Personal information
+    first_name: str = Field(..., min_length=2, max_length=50, description="First name in Hebrew")
+    last_name: str = Field(..., min_length=2, max_length=50, description="Last name in Hebrew")
+    phone: str = Field(..., description="Israeli phone number")
+    email: Optional[EmailStr] = Field(None, description="Email address")
+
+    # Business information
+    business_name: str = Field(..., min_length=2, max_length=100, description="Business name")
+    business_number: Optional[str] = Field(None, description="Business registration number")
+    profession: str = Field(..., min_length=2, description="Professional category")
+    experience_years: int = Field(..., ge=0, le=50, description="Years of experience")
+    service_area: str = Field(..., min_length=2, description="Primary service area/city")
+    description: str = Field(..., min_length=10, max_length=500, description="Service description")
+
+    @validator('first_name', 'last_name')
+    def validate_hebrew_names(cls, v):
+        """Validate Hebrew names."""
+        if not v or not v.strip():
+            raise ValueError("Name cannot be empty")
+
+        v = v.strip()
+
+        # Check for Hebrew characters
+        has_hebrew = any('\u0590' <= char <= '\u05FF' for char in v)
+        if not has_hebrew:
+            raise ValueError("Name must contain Hebrew characters")
+
+        return v
+
+    @validator('phone')
+    def validate_phone_format(cls, v):
+        """Validate and normalize Israeli phone number."""
+        return validate_israeli_phone_model(v)
+
+
+class ProfessionalRegistrationResponse(BaseModel):
+    """Professional registration response model."""
+    success: bool
+    message: str
+    message_he: str
+    user_id: Optional[uuid.UUID] = None
+    professional_id: Optional[uuid.UUID] = None
+
+
 # Validation functions
 def validate_hebrew_name(name: str) -> str:
     """Validate Hebrew name."""

@@ -24,20 +24,20 @@ export const useOTPAuth = () => {
 
       console.log('[OTP_AUTH] Response from send-otp:', response);
 
-      if (!response.data.success) {
-        console.error('Error sending OTP:', response.data);
+      if (!response.success) {
+        console.error('Error sending OTP:', response);
 
         // Check if it's a "user not registered" error
-        if (response.data.message_he && response.data.message_he.includes("לא רשום במערכת")) {
+        if (response.message_he && response.message_he.includes("לא רשום במערכת")) {
           toast({
             title: "משתמש לא רשום",
-            description: response.data.message_he,
+            description: response.message_he,
             variant: "destructive"
           });
         } else {
           toast({
             title: "שגיאה בשליחת קוד",
-            description: response.data.message_he || "לא ניתן היה לשלוח קוד אימות.",
+            description: response.message_he || "לא ניתן היה לשלוח קוד אימות.",
             variant: "destructive"
           });
         }
@@ -61,22 +61,38 @@ export const useOTPAuth = () => {
     try {
       const response = await AuthService.verifyOtp({ contact: identifier, otp });
 
-      if (!response.data.success || !response.data.token_data) {
-        console.error('Error verifying OTP:', response.data.message);
-        toast({ title: "קוד לא תקין", description: response.data.message_he || "הקוד שהזנת שגוי או פג תוקף. נסה שוב.", variant: "destructive" });
+      if (!response.success || !response.token_data) {
+        console.error('Error verifying OTP:', response.message);
+        toast({ title: "קוד לא תקין", description: response.message_he || "הקוד שהזנת שגוי או פג תוקף. נסה שוב.", variant: "destructive" });
         return null;
       }
 
-      if (!response.data.token_data.access_token) {
+      if (!response.token_data.access_token) {
         console.error('No auth token received from verify-otp');
         toast({ title: "שגיאה", description: "לא ניתן היה ליצור הפעלה אוטומטית.", variant: "destructive" });
         return null;
       }
 
+      // Create professional object from token data and user info
+      const professional: Professional = {
+        id: response.token_data.user_id,
+        name: identifier, // We'll get the real name from the backend later
+        phone: identifier,
+        email: '', // We'll get this from the backend
+        businessName: '',
+        profession: '',
+        experienceYears: 0,
+        serviceArea: '',
+        description: '',
+        rating: 0,
+        totalReviews: 0,
+        verified: false
+      };
+
       return {
-        professional: response.data.user as Professional,
-        token: response.data.token_data.access_token,
-        expiresAt: response.data.token_data.expires_at || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+        professional,
+        token: response.token_data.access_token,
+        expiresAt: new Date(Date.now() + response.token_data.expires_in * 1000).toISOString()
       };
 
     } catch (error) {

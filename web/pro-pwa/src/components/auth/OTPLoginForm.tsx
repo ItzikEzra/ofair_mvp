@@ -35,47 +35,17 @@ export const OTPLoginForm = () => {
         tokenLength: response.token ? response.token.length : 0,
         expiresAt: response.expiresAt
       });
-      
-      // Clear old data first (but preserve any existing auth tokens)
-      clearProfessionalDataOnly();
-      
-      // Save professional data and auth token
-      console.log("[OTP_LOGIN] Saving professional data...");
-      const saveDataResult = saveProfessionalData(response.professional);
-      console.log("[OTP_LOGIN] Professional data save result:", saveDataResult);
-      
-      console.log("[OTP_LOGIN] Saving auth token...");
-      const saveTokenResult = saveAuthToken(response.token, response.expiresAt);
-      console.log("[OTP_LOGIN] Auth token save result:", saveTokenResult);
-      
-      // Verify token was saved before proceeding
-      setTimeout(() => {
-        const verifyToken = getAuthToken();
-        console.log("[OTP_LOGIN] Token verification after save:", {
-          tokenExists: !!verifyToken,
-          tokenLength: verifyToken ? verifyToken.length : 0
-        });
-        
-        if (verifyToken) {
-          setIsLoggedIn(true);
-          refreshProfessionalData();
-          
-          toast({
-            title: "התחברות בוצעה בהצלחה",
-            description: "מועבר ללוח הבקרה..."
-          });
-          
-          // Use navigate instead of window.location.href to avoid page reload
-          navigate('/dashboard', { replace: true });
-        } else {
-          console.error("[OTP_LOGIN] Token verification failed after save");
-          toast({
-            title: "שגיאה בהתחברות",
-            description: "אנא נסה שוב",
-            variant: "destructive"
-          });
-        }
-      }, 200);
+
+      // The token is already set in the AuthService, just update auth state
+      setIsLoggedIn(true);
+
+      toast({
+        title: "התחברות בוצעה בהצלחה",
+        description: "מועבר ללוח הבקרה..."
+      });
+
+      // Navigate to dashboard
+      navigate('/dashboard', { replace: true });
     }
   };
 

@@ -1,139 +1,137 @@
-import { supabase } from "@/integrations/supabase/client";
-import { SecureProfileService } from "@/services/secureProfileService";
-
 /**
- * Service for retrieving statistics and dashboard data
- * Works with direct database queries using RLS policies
+ * OFAIR Statistics Service
+ * Handles professional dashboard statistics with FastAPI backend
  */
+
+import apiClient from './apiClient';
+
+export interface DashboardStats {
+  activeLeads: number;
+  acceptedProposals: number;
+  completedProjects: number;
+  averageRating: number;
+  totalReviews: number;
+  estimatedEarnings: string;
+  monthlyEarnings: number;
+  pendingProposals: number;
+}
+
+export interface StatsResponse {
+  stats: DashboardStats;
+  success: boolean;
+}
+
 export class StatsService {
-  
   /**
    * Get dashboard statistics for the current professional
    */
-  static async getDashboardStats(professionalId: string) {
+  static async getDashboardStats(professionalId?: string): Promise<DashboardStats> {
     try {
       console.log("Fetching dashboard stats for professional:", professionalId);
-      
-      // Get proposals data - count accepted proposals
-      const { data: proposalsData, error: proposalsError } = await supabase
-        .from('proposals')
-        .select('id, status')
-        .eq('professional_id', professionalId);
-      
-      if (proposalsError) {
-        console.error("Error fetching proposals:", proposalsError);
-      }
 
-      // Get leads data - count active leads owned by this professional
-      const { data: leadsData, error: leadsError } = await supabase
-        .from('leads')
-        .select('id, status')
-        .eq('professional_id', professionalId);
-      
-      if (leadsError) {
-        console.error("Error fetching leads:", leadsError);
-      }
-
-      // Get projects data
-      const { data: projectsData, error: projectsError } = await supabase
-        .from('projects')
-        .select('id')
-        .eq('professional_id', professionalId);
-      
-      if (projectsError) {
-        console.error("Error fetching projects:", projectsError);
-      }
-
-      // Get professional rating using secure service
-      const { data: professionalData, error: professionalError } = await SecureProfileService.getOwnProfile();
-      
-      if (professionalError) {
-        console.error("Error fetching professional data:", professionalError);
-      }
-
-      // Calculate statistics
-      const proposals = proposalsData || [];
-      const leads = leadsData || [];
-      const projects = projectsData || [];
-
-      const acceptedProposals = proposals.filter((p: any) => p.status === 'accepted').length;
-      const activeLeads = leads.filter((l: any) => l.status === 'active').length;
-      const totalProjects = projects.length;
-      const averageRating = professionalData?.rating || 0;
-
-      // Calculate estimated earnings from lead payments
-      const { data: leadPayments } = await supabase
-        .from('lead_payments')
-        .select('commission_amount')
-        .eq('professional_id', professionalId);
-
-      const currentMonth = new Date();
-      const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
-      const endOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
-
-      const { data: monthlyPayments } = await supabase
-        .from('lead_payments')
-        .select('commission_amount')
-        .eq('professional_id', professionalId)
-        .gte('created_at', startOfMonth.toISOString())
-        .lte('created_at', endOfMonth.toISOString());
-
-      const estimatedEarnings = (monthlyPayments || [])
-        .reduce((sum: number, payment: any) => sum + (payment.commission_amount || 0), 0);
-
-      return {
-        acceptedProposals,
-        activeLeads,
-        totalProjects,
-        averageRating,
-        estimatedEarnings: `${estimatedEarnings.toLocaleString('he-IL')} ₪`,
-        proposalsData: proposals,
-        leadsData: leads,
-        projectsData: projects
+      // For now, return mock data since we need to implement the stats endpoint
+      // TODO: Implement /users/me/stats endpoint in FastAPI
+      const mockStats: DashboardStats = {
+        activeLeads: 0,
+        acceptedProposals: 0,
+        completedProjects: 0,
+        averageRating: 0,
+        totalReviews: 0,
+        estimatedEarnings: "0 ₪",
+        monthlyEarnings: 0,
+        pendingProposals: 0
       };
 
+      // Try to get real stats from backend if endpoint exists
+      try {
+        const response = await apiClient.get<StatsResponse>(
+          'users',
+          '/users/me/stats'
+        );
+
+        if (response.data?.stats) {
+          return response.data.stats;
+        }
+      } catch (error) {
+        console.log("Stats endpoint not yet implemented, using mock data");
+      }
+
+      return mockStats;
+
     } catch (error) {
-      console.error('Error fetching dashboard stats:', error);
+      console.error("Error fetching dashboard stats:", error);
+
+      // Return empty stats on error
       return {
-        acceptedProposals: 0,
         activeLeads: 0,
-        totalProjects: 0,
+        acceptedProposals: 0,
+        completedProjects: 0,
         averageRating: 0,
+        totalReviews: 0,
         estimatedEarnings: "0 ₪",
-        proposalsData: [],
-        leadsData: [],
-        projectsData: []
+        monthlyEarnings: 0,
+        pendingProposals: 0
       };
     }
   }
 
   /**
-   * Get payment data for the professional
+   * Get earnings statistics
    */
-  static async getPaymentData(professionalId: string) {
+  static async getEarningsStats(professionalId?: string): Promise<{
+    monthlyEarnings: number;
+    totalEarnings: number;
+    pendingPayments: number;
+  }> {
     try {
-      // Fetch lead payments
-      const { data: leadPayments } = await supabase
-        .from('lead_payments')
-        .select('*')
-        .eq('professional_id', professionalId);
+      // Try to get from payments service
+      const response = await apiClient.get(
+        'payments',
+        '/payments/earnings'
+      );
 
-      // Fetch icount transactions
-      const { data: icountTransactions } = await supabase
-        .from('icount_transactions')
-        .select('*')
-        .eq('professional_id', professionalId);
-
-      return {
-        leadPayments: leadPayments || [],
-        icountTransactions: icountTransactions || []
+      return response.data || {
+        monthlyEarnings: 0,
+        totalEarnings: 0,
+        pendingPayments: 0
       };
     } catch (error) {
-      console.error('Error fetching payment data:', error);
+      console.log("Earnings endpoint not yet implemented");
       return {
-        leadPayments: [],
-        icountTransactions: []
+        monthlyEarnings: 0,
+        totalEarnings: 0,
+        pendingPayments: 0
+      };
+    }
+  }
+
+  /**
+   * Get professional rating and reviews
+   */
+  static async getRatingStats(professionalId?: string): Promise<{
+    averageRating: number;
+    totalReviews: number;
+  }> {
+    try {
+      // Get from professional profile
+      const response = await apiClient.get(
+        'users',
+        '/users/me/professional'
+      );
+
+      const profile = response.data;
+      return {
+        averageRating: profile?.rating || 0,
+        totalReviews: profile?.total_reviews || 0
+      };
+    } catch (error) {
+      console.log("Could not fetch rating stats");
+      return {
+        averageRating: 0,
+        totalReviews: 0
       };
     }
   }
 }
+
+export default StatsService;

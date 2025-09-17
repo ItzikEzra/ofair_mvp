@@ -6,7 +6,7 @@ import { Upload, X, Loader2, Image } from "lucide-react";
 import { uploadImage } from "@/utils/imageUpload";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth/AuthContext";
 
 interface ImageUploadProps {
   onImageUploaded: (url: string) => void;

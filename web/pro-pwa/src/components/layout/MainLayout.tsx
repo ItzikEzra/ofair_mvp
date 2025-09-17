@@ -5,7 +5,7 @@ import { Button } from "../ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth/AuthContext";
 import { useProfessionalId } from "@/hooks/useProfessionalId";
 import { useOptimizedNotifications } from "@/hooks/useOptimizedNotifications";
 import { useTheme } from "@/components/ThemeProvider";

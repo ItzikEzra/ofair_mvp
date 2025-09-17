@@ -6,8 +6,7 @@ import ProposalsPreviewSection from "@/components/dashboard/ProposalsPreviewSect
 import NotificationsSection from "@/components/dashboard/NotificationsSection";
 import WorkCompletionNotifications from "@/components/dashboard/WorkCompletionNotifications";
 import DailyTip from "@/components/dashboard/DailyTip";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/auth/AuthContext";
 import { useState, useEffect } from "react";
 import { LeadProposal } from "@/types/leads";
 
